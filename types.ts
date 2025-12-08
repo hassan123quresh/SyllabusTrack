@@ -26,3 +26,9 @@ export interface ChartDataPoint {
   value: number;
   fill: string;
 }
+
+export interface Resource {
+  id: string; // This will match the subjectId
+  content: string; // HTML string
+  updatedAt: string;
+}
