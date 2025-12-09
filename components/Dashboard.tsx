@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
 import { INITIAL_SYLLABUS, INITIAL_EXAMS } from '../constants';
 import { Subject, Topic, PriorityLevel, Exam } from '../types';
@@ -42,14 +43,17 @@ export const Dashboard: React.FC = () => {
 
   // Screen size state for Chart responsiveness
   const [isMobile, setIsMobile] = useState(false);
+  const [isPhone, setIsPhone] = useState(false);
 
   useLayoutEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1280);
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 1280);
+      setIsPhone(width < 768);
     };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
   // --- FIREBASE LISTENERS ---
@@ -440,12 +444,14 @@ export const Dashboard: React.FC = () => {
                            stackId="a" 
                            fill="url(#limeGradient)" 
                            radius={isMobile ? [0, 0, 0, 0] : [0, 0, 0, 0]} 
+                           isAnimationActive={!isPhone}
                         />
                         <Bar 
                            dataKey="Remaining" 
                            stackId="a" 
                            fill="rgba(255, 255, 255, 0.08)" 
                            radius={isMobile ? [0, 4, 4, 0] : [4, 4, 0, 0]} 
+                           isAnimationActive={!isPhone}
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -469,6 +475,7 @@ export const Dashboard: React.FC = () => {
                           paddingAngle={6}
                           dataKey="value"
                           stroke="none"
+                          isAnimationActive={!isPhone}
                         >
                           {priorityData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
