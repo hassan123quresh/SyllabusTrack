@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { INITIAL_SYLLABUS, INITIAL_EXAMS } from '../constants';
 import { Subject, Topic, PriorityLevel, Exam } from '../types';
@@ -35,13 +34,15 @@ export const Dashboard: React.FC = () => {
     let timeoutId: number;
     const checkScreenSize = () => {
       const width = window.innerWidth;
-      setIsMobile(width < 1280);
-      setIsPhone(width < 768);
+      // Only update if value actually changes to prevent re-renders
+      setIsMobile(prev => { const n = width < 1280; return n !== prev ? n : prev; });
+      setIsPhone(prev => { const n = width < 768; return n !== prev ? n : prev; });
     };
     const debouncedCheck = () => {
       clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(checkScreenSize, 100);
+      timeoutId = window.setTimeout(checkScreenSize, 150);
     };
+    // Initial check
     checkScreenSize();
     window.addEventListener('resize', debouncedCheck);
     return () => {
@@ -227,9 +228,11 @@ export const Dashboard: React.FC = () => {
   }, [subjects, exams]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
+    // Disable tooltip on phone for performance
+    if (isPhone) return null;
     if (active && payload && payload.length) {
       return (
-        <div className="bg-[#020604]/95 border border-lime-500/20 p-2 rounded text-white text-[10px] shadow-xl backdrop-blur-md">
+        <div className="bg-[#020604] border border-lime-500/20 p-2 rounded text-white text-[10px] shadow-xl">
           <p className="font-bold mb-1 text-lime-300">{label}</p>
           {payload.map((entry: any, index: number) => (
              <div key={index} className="flex items-center gap-1.5">
@@ -244,7 +247,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 w-full flex-1">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-10 w-full flex-1">
         {loading ? (
            <div className="flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
@@ -252,7 +255,7 @@ export const Dashboard: React.FC = () => {
         ) : (
           <>
             {subjects.length === 0 && exams.length === 0 && (
-              <div className="mb-8 p-6 glass-panel rounded-3xl bg-emerald-900/10 border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="mb-6 p-6 glass-panel rounded-3xl bg-emerald-900/10 border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
                  <div>
                    <h3 className="text-xl font-bold text-white text-center sm:text-left">Database is Empty</h3>
                    <p className="text-slate-400 text-sm mt-1 text-center sm:text-left">Upload default syllabus data?</p>
@@ -261,65 +264,75 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3 tracking-tight drop-shadow-lg"><Activity className="w-6 h-6 sm:w-7 sm:h-7 text-lime-400" /> Overview</h2>
-                  <p className="text-slate-400 text-sm sm:text-base mt-2 font-medium">Your academic command center.</p>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3 tracking-tight"><Activity className="w-6 h-6 sm:w-7 sm:h-7 text-lime-400" /> Overview</h2>
+                  <p className="text-slate-400 text-sm sm:text-base mt-1 font-medium">Your academic command center.</p>
                </div>
-               <div className="hidden md:flex items-center gap-4 bg-white/5 backdrop-blur-md border border-white/10 px-5 py-2 rounded-full shadow-lg">
+               <div className="hidden md:flex items-center gap-4 bg-white/5 border border-white/10 px-5 py-2 rounded-full shadow-lg">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Overall</span>
                   <div className="w-32 h-2 bg-black/40 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-lime-400 via-emerald-500 to-teal-500 rounded-full" style={{ width: `${completionPercentage}%` }}></div></div>
                   <span className="text-sm font-bold text-white">{completionPercentage}%</span>
                </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-10">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-10">
               {[
                 { label: 'Tasks', val: totalTasks, icon: Layers, c: 'lime' },
                 { label: 'Completed', val: completedTasks, icon: Trophy, c: 'emerald' },
                 { label: 'High Priority', val: highPriorityPending, icon: AlertCircle, c: 'amber' },
                 { label: 'Overdue', val: overdueCount, icon: AlertTriangle, c: 'rose' }
               ].map((s, i) => (
-                <div key={i} className="glass-card p-4 sm:p-6 rounded-3xl flex flex-col items-center justify-center text-center group">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-${s.c}-500/10 text-${s.c}-300 rounded-2xl flex items-center justify-center mb-2 sm:mb-3 shadow-[0_0_15px_rgba(0,0,0,0.1)] border border-${s.c}-500/20`}>
+                <div key={i} className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col items-center justify-center text-center">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-${s.c}-500/10 text-${s.c}-300 rounded-xl sm:rounded-2xl flex items-center justify-center mb-2 sm:mb-3 border border-${s.c}-500/20`}>
                     <s.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <span className="text-3xl sm:text-4xl font-bold text-white tracking-tighter">{s.val}</span>
+                  <span className="text-2xl sm:text-4xl font-bold text-white tracking-tighter">{s.val}</span>
                   <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{s.label}</span>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 mb-8 sm:mb-10 items-stretch">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-10 items-stretch">
               <div className="xl:col-span-2 flex flex-col gap-6 sm:gap-8 h-full">
-                <div className="glass-panel p-4 sm:p-6 rounded-3xl shadow-2xl flex-1 flex flex-col">
+                <div className="glass-panel p-4 sm:p-6 rounded-3xl flex-1 flex flex-col">
                   <h3 className="font-bold text-white mb-6 flex items-center gap-2 text-lg"><TrendingUp className="w-5 h-5 text-lime-400" /> Subject Progress</h3>
                   <div className="flex-1 w-full min-h-[250px] -ml-2 sm:ml-0">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart layout={isMobile ? 'vertical' : 'horizontal'} data={subjectProgressData} margin={{ top: 5, right: 10, left: isMobile ? 0 : -20, bottom: 5 }} barSize={isMobile ? 24 : 36}>
+                      <BarChart layout={isMobile ? 'vertical' : 'horizontal'} data={subjectProgressData} margin={{ top: 5, right: 10, left: isMobile ? 0 : -20, bottom: 5 }} barSize={isMobile ? 20 : 36}>
                         <CartesianGrid vertical={false} horizontal={false} stroke="rgba(255,255,255,0.05)" />
                         {isMobile ? 
-                          <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600 }} /> : 
+                          <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={90} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} /> : 
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600, dy: 10 }} interval={0} />
                         }
                         {!isMobile && <YAxis hide={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />}
-                        <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />
-                        <Bar dataKey="Completed" stackId="a" fill="url(#limeGradient)" radius={isMobile ? [0, 0, 0, 0] : [0, 0, 0, 0]} isAnimationActive={!isPhone} />
-                        <Bar dataKey="Remaining" stackId="a" fill="rgba(255, 255, 255, 0.08)" radius={isMobile ? [0, 4, 4, 0] : [4, 4, 0, 0]} isAnimationActive={!isPhone} />
+                        {!isPhone && <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />}
+                        <Bar dataKey="Completed" stackId="a" fill="url(#limeGradient)" radius={isMobile ? [0, 0, 0, 0] : [0, 0, 0, 0]} isAnimationActive={!isPhone} animationDuration={isPhone ? 0 : 1000} />
+                        <Bar dataKey="Remaining" stackId="a" fill="rgba(255, 255, 255, 0.08)" radius={isMobile ? [0, 4, 4, 0] : [4, 4, 0, 0]} isAnimationActive={!isPhone} animationDuration={isPhone ? 0 : 1000} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
 
-                <div className="glass-panel p-4 sm:p-6 rounded-3xl shadow-2xl flex-1 flex flex-col">
+                <div className="glass-panel p-4 sm:p-6 rounded-3xl flex-1 flex flex-col">
                   <h3 className="font-bold text-white mb-6 flex items-center gap-2 text-lg"><Activity className="w-5 h-5 text-lime-400" /> Priority Mix</h3>
                   <div className="flex-1 w-full relative min-h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={priorityData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={6} dataKey="value" stroke="none" isAnimationActive={!isPhone}>
+                        <Pie 
+                          data={priorityData} 
+                          cx="50%" cy="50%" 
+                          innerRadius={isPhone ? 50 : 60} 
+                          outerRadius={isPhone ? 70 : 80} 
+                          paddingAngle={6} 
+                          dataKey="value" 
+                          stroke="none" 
+                          isAnimationActive={!isPhone}
+                          animationDuration={isPhone ? 0 : 1000}
+                        >
                           {priorityData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                         </Pie>
-                        <Tooltip content={<CustomTooltip />} />
+                        {!isPhone && <Tooltip content={<CustomTooltip />} />}
                         <Legend iconSize={8} wrapperStyle={{ fontSize: '12px', opacity: 0.7, color: '#94a3b8' }} verticalAlign="bottom" height={36}/>
                       </PieChart>
                     </ResponsiveContainer>
@@ -330,7 +343,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="glass-panel p-0 rounded-3xl shadow-2xl flex flex-col overflow-hidden h-full min-h-[400px] xl:min-h-[500px]">
+              <div className="glass-panel p-0 rounded-3xl flex flex-col overflow-hidden h-full min-h-[400px] xl:min-h-[500px]">
                 <div className="p-4 sm:p-6 border-b border-white/10 bg-gradient-to-br from-emerald-900/40 to-black/40">
                   <h3 className="font-bold text-white flex items-center gap-2 text-lg"><Calendar className="w-5 h-5 text-lime-400" /> Exam Headquarters</h3>
                   <div className="mt-4 sm:mt-6 flex flex-col items-center justify-center text-center p-4 sm:p-6 bg-white/5 rounded-2xl border border-white/10 relative overflow-hidden">
@@ -386,7 +399,7 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            <div className="mb-6 sm:mb-8 flex items-center justify-between"><h2 className="text-2xl font-bold text-white tracking-tight">Syllabus</h2></div>
+            <div className="mb-6 flex items-center justify-between"><h2 className="text-2xl font-bold text-white tracking-tight">Syllabus</h2></div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               {subjects.map(subject => (
                 <SubjectCard 

@@ -1,13 +1,17 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Syllabus Tracker</title>
+    
+    <!-- Critical Performance: Resource Hints to reduce network latency -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="https://firestore.googleapis.com">
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23bef264'/%3E%3Cpath d='M26 11v6 M2 11l12-5 12 5-12 5z M6 14v6c4 0 8 0 12 8l10-8v-6' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round' transform='translate(1, 1)'/%3E%3C/svg%3E" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -16,14 +20,8 @@
         theme: {
           extend: {
             fontFamily: { sans: ['Inter', 'sans-serif'] },
-            animation: { 'blob': 'blob 20s infinite', 'fade-in': 'fadeIn 0.3s ease-out forwards' },
+            animation: { 'fade-in': 'fadeIn 0.2s ease-out forwards' },
             keyframes: {
-              blob: {
-                '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                '33%': { transform: 'translate(30px, -30px) scale(1.05)' },
-                '66%': { transform: 'translate(-20px, 20px) scale(0.95)' },
-                '100%': { transform: 'translate(0px, 0px) scale(1)' },
-              },
               fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } }
             }
           }
@@ -31,78 +29,79 @@
       }
     </script>
     <style>
+      /* Base Performance Reset */
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0; padding: 0;
         background-color: #020604;
-        /* Performance: Simplified gradient stack */
-        background-image: radial-gradient(circle at 50% 0%, #0d1f12 0%, transparent 70%);
+        /* Performance: Static gradient instead of complex layers */
+        background-image: radial-gradient(circle at 50% 0%, #0d1f12 0%, #020604 80%);
         background-attachment: fixed;
-        background-size: cover;
         color: #f8fafc;
         -webkit-font-smoothing: antialiased;
         -webkit-tap-highlight-color: transparent;
         overflow-x: hidden;
+        overscroll-behavior-y: none; /* Prevents pull-to-refresh lag on some browsers */
       }
-      .liquid-blob {
-        position: fixed;
-        filter: blur(40px);
-        z-index: -1;
-        opacity: 0.3;
-        will-change: transform;
-        transform: translateZ(0); /* Hardware acceleration */
-        pointer-events: none;
-      }
+      
+      /* Scrollbar Optimization */
       ::-webkit-scrollbar { width: 6px; height: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: rgba(190, 242, 100, 0.15); border-radius: 3px; }
       ::-webkit-scrollbar-thumb:hover { background: rgba(190, 242, 100, 0.3); }
       
+      /* Desktop: High Fidelity */
       .glass-panel {
-        background: rgba(10, 20, 15, 0.85); /* Slightly more opaque for performance */
+        background: rgba(10, 20, 15, 0.85);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        will-change: transform; /* Hint for compositor */
+        transform: translateZ(0); /* Force hardware acceleration */
       }
       .glass-card {
         background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         border: 1px solid rgba(255, 255, 255, 0.05);
-        transition: transform 0.15s ease-out, background 0.15s ease;
-        will-change: transform;
-        transform: translateZ(0);
+        transition: background 0.1s ease; /* Removed transform transition for speed */
+        will-change: background;
       }
       .glass-card:hover {
         background: rgba(255, 255, 255, 0.06);
         border-color: rgba(190, 242, 100, 0.15);
       }
       .glass-input {
-        background: rgba(0, 0, 0, 0.3);
+        background: rgba(0, 0, 0, 0.4);
         border: 1px solid rgba(255, 255, 255, 0.1);
         color: white;
       }
-      .glass-input:focus {
-        background: rgba(0, 0, 0, 0.5);
-        border-color: rgba(190, 242, 100, 0.4);
-      }
 
-      /* Mobile Performance Overrides - Critical for lag reduction */
+      /* Mobile Performance Critical Overrides (Input Delay & Frame Drop Fixes) */
       @media (max-width: 768px) {
-        .liquid-blob {
-          display: none; /* Removed completely on mobile to save GPU */
-        }
         body {
-           background-image: linear-gradient(180deg, #050f08 0%, #020604 100%); /* Cheaper gradient */
+           background-image: none;
+           background-color: #020604;
         }
-        .glass-panel, .glass-card {
-          backdrop-filter: blur(5px) !important; /* Minimal blur */
-          -webkit-backdrop-filter: blur(5px) !important;
-          background: rgba(10, 20, 15, 0.95); /* Nearly opaque */
+        /* DISABLE BLUR: The #1 cause of mobile lag */
+        .glass-panel, .glass-card, nav {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          background: #08100c !important; /* Solid dark color */
           box-shadow: none !important;
+          border: 1px solid rgba(255,255,255,0.08) !important;
         }
-        .glass-card:hover { transform: none !important; }
-        ::-webkit-scrollbar { width: 3px; }
+        /* Disable hover states on touch devices to prevent sticky styles */
+        .glass-card:hover { background: #08100c !important; border-color: rgba(255, 255, 255, 0.05) !important; }
+        
+        /* Remove animations */
+        * { animation: none !important; transition: none !important; }
+        
+        /* Native scroll performance */
+        ::-webkit-scrollbar { width: 3px; display: none; }
       }
     </style>
   <script type="importmap">
@@ -122,9 +121,6 @@
 </script>
 </head>
   <body class="antialiased selection:bg-lime-400 selection:text-black">
-    <!-- Static inline styles for performance -->
-    <div class="liquid-blob bg-lime-900 w-80 h-80 rounded-full top-[-5%] left-[-5%] mix-blend-screen"></div>
-    <div class="liquid-blob bg-emerald-900 w-96 h-96 rounded-full bottom-[-5%] right-[-5%] mix-blend-screen" style="animation-delay: -5s"></div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
