@@ -4,8 +4,12 @@ import { LoginScreen } from './components/LoginScreen';
 import { GraduationCap, LayoutDashboard, BookOpen } from 'lucide-react';
 
 // Lazy load components to reduce initial bundle size (Code Splitting)
-const Dashboard = React.lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
-const ResourceManagerPage = React.lazy(() => import('./components/ResourceManagerPage').then(module => ({ default: module.ResourceManagerPage })));
+// We assign these to variables so we can reference them for preloading
+const dashboardImport = () => import('./components/Dashboard').then(module => ({ default: module.Dashboard }));
+const resourcesImport = () => import('./components/ResourceManagerPage').then(module => ({ default: module.ResourceManagerPage }));
+
+const Dashboard = React.lazy(dashboardImport);
+const ResourceManagerPage = React.lazy(resourcesImport);
 
 const App: React.FC = () => {
   // Authentication State
@@ -35,6 +39,10 @@ const App: React.FC = () => {
     localStorage.setItem('lastLogin', Date.now().toString());
     setIsAuthenticated(true);
   };
+  
+  // Prefetch logic
+  const prefetchDashboard = () => dashboardImport();
+  const prefetchResources = () => resourcesImport();
 
   if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLoginSuccess} />;
@@ -68,6 +76,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-4 bg-white/5 p-1 rounded-full border border-white/10 backdrop-blur-md">
             <button
               onClick={() => setCurrentView('dashboard')}
+              onMouseEnter={prefetchDashboard}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
                 currentView === 'dashboard' 
                   ? 'bg-lime-500 text-black shadow-[0_0_15px_rgba(163,230,53,0.3)]' 
@@ -79,6 +88,7 @@ const App: React.FC = () => {
             </button>
             <button
               onClick={() => setCurrentView('resources')}
+              onMouseEnter={prefetchResources}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
                 currentView === 'resources' 
                   ? 'bg-lime-500 text-black shadow-[0_0_15px_rgba(163,230,53,0.3)]' 
@@ -94,12 +104,7 @@ const App: React.FC = () => {
 
       {/* Main Content Router with Suspense */}
       <main className="w-full flex-1 relative">
-         <Suspense fallback={
-           <div className="flex flex-col items-center justify-center min-h-[60vh]">
-             <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
-             <p className="mt-4 text-slate-500 text-sm font-medium animate-pulse">Loading module...</p>
-           </div>
-         }>
+         <Suspense fallback={null}>
            {currentView === 'dashboard' && <Dashboard />}
            {currentView === 'resources' && <ResourceManagerPage />}
          </Suspense>

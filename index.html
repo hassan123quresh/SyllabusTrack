@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -44,6 +45,7 @@
         -webkit-tap-highlight-color: transparent;
         overflow-x: hidden;
         overscroll-behavior-y: none; /* Prevents pull-to-refresh lag on some browsers */
+        text-rendering: optimizeSpeed; /* Performance: favor speed over precision */
       }
       
       /* Scrollbar Optimization */
@@ -69,6 +71,7 @@
         border: 1px solid rgba(255, 255, 255, 0.05);
         transition: background 0.1s ease; /* Removed transform transition for speed */
         will-change: background;
+        transform: translateZ(0);
       }
       .glass-card:hover {
         background: rgba(255, 255, 255, 0.06);
@@ -87,13 +90,22 @@
            background-color: #020604;
         }
         /* DISABLE BLUR: The #1 cause of mobile lag */
-        .glass-panel, .glass-card, nav {
+        .glass-panel, .glass-card, nav, div {
           backdrop-filter: none !important;
           -webkit-backdrop-filter: none !important;
-          background: #08100c !important; /* Solid dark color */
           box-shadow: none !important;
+        }
+        
+        .glass-panel {
+          background: #08100c !important;
           border: 1px solid rgba(255,255,255,0.08) !important;
         }
+        
+        .glass-card {
+          background: #08100c !important;
+          border: 1px solid rgba(255,255,255,0.05) !important;
+        }
+        
         /* Disable hover states on touch devices to prevent sticky styles */
         .glass-card:hover { background: #08100c !important; border-color: rgba(255, 255, 255, 0.05) !important; }
         

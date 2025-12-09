@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { INITIAL_SYLLABUS, INITIAL_EXAMS } from '../constants';
 import { Subject, Topic, PriorityLevel, Exam } from '../types';
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 import { db } from '../firebase';
 import { 
-  collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy, runTransaction 
+  collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy, getDoc, updateDoc 
 } from 'firebase/firestore';
 
 export const Dashboard: React.FC = () => {
@@ -28,26 +29,36 @@ export const Dashboard: React.FC = () => {
   const [newExamDate, setNewExamDate] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
+  
+  // Performance: Defer heavy chart rendering until after initial paint
+  const [chartsReady, setChartsReady] = useState(false);
 
-  // Performance: Debounce resize handler
   useEffect(() => {
-    let timeoutId: number;
+    // Determine screen size efficiently
     const checkScreenSize = () => {
       const width = window.innerWidth;
-      // Only update if value actually changes to prevent re-renders
-      setIsMobile(prev => { const n = width < 1280; return n !== prev ? n : prev; });
-      setIsPhone(prev => { const n = width < 768; return n !== prev ? n : prev; });
+      setIsMobile(width < 1280);
+      setIsPhone(width < 768);
     };
+    checkScreenSize();
+    
+    // Debounced resize listener
+    let timeoutId: number;
     const debouncedCheck = () => {
       clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(checkScreenSize, 150);
+      timeoutId = window.setTimeout(checkScreenSize, 200);
     };
-    // Initial check
-    checkScreenSize();
     window.addEventListener('resize', debouncedCheck);
+    
+    // Defer chart rendering to unblock TBT (Total Blocking Time)
+    const chartTimer = setTimeout(() => {
+      setChartsReady(true);
+    }, 100);
+
     return () => {
       window.removeEventListener('resize', debouncedCheck);
       clearTimeout(timeoutId);
+      clearTimeout(chartTimer);
     };
   }, []);
 
@@ -70,9 +81,9 @@ export const Dashboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Performance: Use structuredClone for faster deep copies
+  // Performance & Safety: JSON.stringify removes 'undefined', which Firestore rejects.
+  // We use this instead of structuredClone to ensure Firestore compatibility.
   const sanitizeForFirestore = (data: any) => {
-    if (typeof structuredClone === 'function') return structuredClone(data);
     return JSON.parse(JSON.stringify(data));
   };
 
@@ -107,58 +118,63 @@ export const Dashboard: React.FC = () => {
     }
   }, [subjectToDelete]);
 
-  // Performance: Use transactions to make handlers stable (dependency-free)
   const handleToggleTopic = useCallback(async (subjectId: string, topicId: string) => {
     const subjectRef = doc(db, "subjects", subjectId);
     try {
-      await runTransaction(db, async (transaction) => {
-        const sfDoc = await transaction.get(subjectRef);
-        if (!sfDoc.exists()) return;
-        const data = sfDoc.data() as Subject;
+      // Use getDoc + updateDoc for better performance and to avoid transaction contention/version errors
+      const snap = await getDoc(subjectRef);
+      if (snap.exists()) {
+        const data = snap.data() as Subject;
         const updatedTopics = data.topics.map(t => t.id === topicId ? { ...t, isCompleted: !t.isCompleted } : t);
-        transaction.update(subjectRef, { topics: updatedTopics });
-      });
+        await updateDoc(subjectRef, { topics: updatedTopics });
+      }
     } catch (e) { console.error("Toggle failed:", e); }
   }, []);
 
   const handleAddTopicToSubject = useCallback(async (subjectId: string, topicName: string, priority: PriorityLevel, deadline?: string) => {
     const subjectRef = doc(db, "subjects", subjectId);
     try {
-      await runTransaction(db, async (transaction) => {
-        const sfDoc = await transaction.get(subjectRef);
-        if (!sfDoc.exists()) return;
-        const data = sfDoc.data() as Subject;
+      const snap = await getDoc(subjectRef);
+      if (snap.exists()) {
+        const data = snap.data() as Subject;
         const newTopic: Topic = {
           id: `topic-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           name: topicName,
-          isCompleted: false, priority, deadline
+          isCompleted: false,
+          priority,
+          deadline // passing undefined here causes Firestore error
         };
-        transaction.update(subjectRef, { topics: [...data.topics, newTopic] });
-      });
+        // Sanitize to remove undefined fields
+        const safeTopic = sanitizeForFirestore(newTopic);
+        
+        await updateDoc(subjectRef, { topics: [...data.topics, safeTopic] });
+      }
     } catch (e) { console.error("Add topic failed:", e); }
   }, []);
 
   const handleDeleteTopic = useCallback(async (subjectId: string, topicId: string) => {
     const subjectRef = doc(db, "subjects", subjectId);
     try {
-      await runTransaction(db, async (transaction) => {
-        const sfDoc = await transaction.get(subjectRef);
-        if (!sfDoc.exists()) return;
-        const data = sfDoc.data() as Subject;
-        transaction.update(subjectRef, { topics: data.topics.filter(t => t.id !== topicId) });
-      });
+      const snap = await getDoc(subjectRef);
+      if (snap.exists()) {
+        const data = snap.data() as Subject;
+        const updatedTopics = data.topics.filter(t => t.id !== topicId);
+        await updateDoc(subjectRef, { topics: updatedTopics });
+      }
     } catch (e) { console.error("Delete topic failed:", e); }
   }, []);
 
   const handleEditTopic = useCallback(async (subjectId: string, updatedTopic: Topic) => {
     const subjectRef = doc(db, "subjects", subjectId);
     try {
-      await runTransaction(db, async (transaction) => {
-        const sfDoc = await transaction.get(subjectRef);
-        if (!sfDoc.exists()) return;
-        const data = sfDoc.data() as Subject;
-        transaction.update(subjectRef, { topics: data.topics.map(t => t.id === updatedTopic.id ? updatedTopic : t) });
-      });
+      const snap = await getDoc(subjectRef);
+      if (snap.exists()) {
+        const data = snap.data() as Subject;
+        // Sanitize to remove undefined fields
+        const safeTopic = sanitizeForFirestore(updatedTopic);
+        const updatedTopics = data.topics.map(t => t.id === safeTopic.id ? safeTopic : t);
+        await updateDoc(subjectRef, { topics: updatedTopics });
+      }
     } catch (e) { console.error("Edit topic failed:", e); }
   }, []);
 
@@ -276,66 +292,83 @@ export const Dashboard: React.FC = () => {
                </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-10">
+            {/* Badges Section - Optimized: Single row on mobile with reduced gaps and font sizes */}
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-6 mb-6 sm:mb-10">
               {[
                 { label: 'Tasks', val: totalTasks, icon: Layers, c: 'lime' },
-                { label: 'Completed', val: completedTasks, icon: Trophy, c: 'emerald' },
-                { label: 'High Priority', val: highPriorityPending, icon: AlertCircle, c: 'amber' },
+                { label: 'Done', val: completedTasks, icon: Trophy, c: 'emerald' },
+                { label: 'High Prio', val: highPriorityPending, icon: AlertCircle, c: 'amber' },
                 { label: 'Overdue', val: overdueCount, icon: AlertTriangle, c: 'rose' }
               ].map((s, i) => (
-                <div key={i} className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl flex flex-col items-center justify-center text-center">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-${s.c}-500/10 text-${s.c}-300 rounded-xl sm:rounded-2xl flex items-center justify-center mb-2 sm:mb-3 border border-${s.c}-500/20`}>
-                    <s.icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                <div key={i} className="glass-card p-1.5 sm:p-6 rounded-xl sm:rounded-3xl flex flex-col items-center justify-center text-center">
+                  <div className={`w-8 h-8 sm:w-12 sm:h-12 bg-${s.c}-500/10 text-${s.c}-300 rounded-lg sm:rounded-2xl flex items-center justify-center mb-1 sm:mb-3 border border-${s.c}-500/20`}>
+                    <s.icon className="w-4 h-4 sm:w-6 sm:h-6" />
                   </div>
-                  <span className="text-2xl sm:text-4xl font-bold text-white tracking-tighter">{s.val}</span>
-                  <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{s.label}</span>
+                  <span className="text-lg sm:text-4xl font-bold text-white tracking-tighter leading-tight">{s.val}</span>
+                  <span className="text-[9px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5 sm:mt-1 truncate w-full px-1">{s.label}</span>
                 </div>
               ))}
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-10 items-stretch">
               <div className="xl:col-span-2 flex flex-col gap-6 sm:gap-8 h-full">
-                <div className="glass-panel p-4 sm:p-6 rounded-3xl flex-1 flex flex-col">
-                  <h3 className="font-bold text-white mb-6 flex items-center gap-2 text-lg"><TrendingUp className="w-5 h-5 text-lime-400" /> Subject Progress</h3>
-                  <div className="flex-1 w-full min-h-[250px] -ml-2 sm:ml-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart layout={isMobile ? 'vertical' : 'horizontal'} data={subjectProgressData} margin={{ top: 5, right: 10, left: isMobile ? 0 : -20, bottom: 5 }} barSize={isMobile ? 20 : 36}>
-                        <CartesianGrid vertical={false} horizontal={false} stroke="rgba(255,255,255,0.05)" />
-                        {isMobile ? 
-                          <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={90} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} /> : 
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600, dy: 10 }} interval={0} />
-                        }
-                        {!isMobile && <YAxis hide={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />}
-                        {!isPhone && <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />}
-                        <Bar dataKey="Completed" stackId="a" fill="url(#limeGradient)" radius={isMobile ? [0, 0, 0, 0] : [0, 0, 0, 0]} isAnimationActive={!isPhone} animationDuration={isPhone ? 0 : 1000} />
-                        <Bar dataKey="Remaining" stackId="a" fill="rgba(255, 255, 255, 0.08)" radius={isMobile ? [0, 4, 4, 0] : [4, 4, 0, 0]} isAnimationActive={!isPhone} animationDuration={isPhone ? 0 : 1000} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                {/* Subject Progress Graph - Maximized margins on mobile */}
+                <div className="glass-panel p-0 sm:p-6 rounded-3xl flex-1 flex flex-col overflow-hidden">
+                  <div className="p-4 sm:p-0 pb-0">
+                     <h3 className="font-bold text-white mb-2 sm:mb-6 flex items-center gap-2 text-sm sm:text-lg"><TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-lime-400" /> Subject Progress</h3>
+                  </div>
+                  <div className="flex-1 w-full min-h-[250px] sm:ml-0">
+                    {chartsReady ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart 
+                          layout={isMobile ? 'vertical' : 'horizontal'} 
+                          data={subjectProgressData} 
+                          margin={{ top: 0, right: 10, left: isMobile ? -10 : -20, bottom: 0 }} 
+                          barSize={isMobile ? 20 : 36}
+                        >
+                          <CartesianGrid vertical={false} horizontal={false} stroke="rgba(255,255,255,0.05)" />
+                          {isMobile ? 
+                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={80} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} /> : 
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600, dy: 10 }} interval={0} />
+                          }
+                          {!isMobile && <YAxis hide={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />}
+                          {!isPhone && <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />}
+                          <Bar dataKey="Completed" stackId="a" fill="url(#limeGradient)" radius={isMobile ? [0, 0, 0, 0] : [0, 0, 0, 0]} isAnimationActive={!isPhone} animationDuration={isPhone ? 0 : 800} />
+                          <Bar dataKey="Remaining" stackId="a" fill="rgba(255, 255, 255, 0.08)" radius={isMobile ? [0, 4, 4, 0] : [4, 4, 0, 0]} isAnimationActive={!isPhone} animationDuration={isPhone ? 0 : 800} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs animate-pulse">Loading Visualization...</div>
+                    )}
                   </div>
                 </div>
 
                 <div className="glass-panel p-4 sm:p-6 rounded-3xl flex-1 flex flex-col">
                   <h3 className="font-bold text-white mb-6 flex items-center gap-2 text-lg"><Activity className="w-5 h-5 text-lime-400" /> Priority Mix</h3>
                   <div className="flex-1 w-full relative min-h-[250px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie 
-                          data={priorityData} 
-                          cx="50%" cy="50%" 
-                          innerRadius={isPhone ? 50 : 60} 
-                          outerRadius={isPhone ? 70 : 80} 
-                          paddingAngle={6} 
-                          dataKey="value" 
-                          stroke="none" 
-                          isAnimationActive={!isPhone}
-                          animationDuration={isPhone ? 0 : 1000}
-                        >
-                          {priorityData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                        </Pie>
-                        {!isPhone && <Tooltip content={<CustomTooltip />} />}
-                        <Legend iconSize={8} wrapperStyle={{ fontSize: '12px', opacity: 0.7, color: '#94a3b8' }} verticalAlign="bottom" height={36}/>
-                      </PieChart>
-                    </ResponsiveContainer>
+                    {chartsReady ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie 
+                            data={priorityData} 
+                            cx="50%" cy="50%" 
+                            innerRadius={isPhone ? 50 : 60} 
+                            outerRadius={isPhone ? 70 : 80} 
+                            paddingAngle={6} 
+                            dataKey="value" 
+                            stroke="none" 
+                            isAnimationActive={!isPhone}
+                            animationDuration={isPhone ? 0 : 800}
+                          >
+                            {priorityData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                          </Pie>
+                          {!isPhone && <Tooltip content={<CustomTooltip />} />}
+                          <Legend iconSize={8} wrapperStyle={{ fontSize: '12px', opacity: 0.7, color: '#94a3b8' }} verticalAlign="bottom" height={36}/>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                       <div className="w-full h-full flex items-center justify-center rounded-full border border-white/5"></div>
+                    )}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none mb-8">
                       <div className="text-center"><span className="block text-4xl font-bold text-white tracking-tighter">{pendingTasks}</span><span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Left</span></div>
                     </div>
