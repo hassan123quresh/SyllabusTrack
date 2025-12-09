@@ -1,14 +1,10 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { INITIAL_SYLLABUS, INITIAL_EXAMS } from '../constants';
 import { Subject, Topic, PriorityLevel, Exam } from '../types';
 import { SubjectCard } from './SubjectCard';
 import { AddSubjectModal } from './AddSubjectModal';
 import { ConfirmationModal } from './ConfirmationModal';
-import { 
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip 
-} from 'recharts';
 import { 
   Activity, TrendingUp, AlertCircle, Calendar, Trophy, 
   AlertTriangle, Layers, Trash2, Timer, Plus, CloudUpload, PlusCircle
@@ -17,6 +13,10 @@ import { db } from '../firebase';
 import { 
   collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy, getDoc, updateDoc 
 } from 'firebase/firestore';
+
+// Lazy load charts to split bundle and improve LCP/TBT
+const SubjectProgressChart = React.lazy(() => import('./DashboardCharts').then(module => ({ default: module.SubjectProgressChart })));
+const PriorityMixChart = React.lazy(() => import('./DashboardCharts').then(module => ({ default: module.PriorityMixChart })));
 
 export const Dashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -51,6 +51,7 @@ export const Dashboard: React.FC = () => {
     window.addEventListener('resize', debouncedCheck);
     
     // Defer chart rendering to unblock TBT (Total Blocking Time)
+    // Using setTimeout to yield to main thread for critical first paint
     const chartTimer = setTimeout(() => {
       setChartsReady(true);
     }, 100);
@@ -89,19 +90,22 @@ export const Dashboard: React.FC = () => {
 
   const seedDatabase = useCallback(async () => {
     setLoading(true);
-    try {
-      const batchPromises = [];
-      for (const subject of INITIAL_SYLLABUS) {
-        const { id, ...data } = subject;
-        batchPromises.push(addDoc(collection(db, "subjects"), sanitizeForFirestore(data)));
-      }
-      for (const exam of INITIAL_EXAMS) {
-        const { id, ...data } = exam;
-        batchPromises.push(addDoc(collection(db, "exams"), sanitizeForFirestore(data)));
-      }
-      await Promise.all(batchPromises);
-    } catch (error) { console.error("Error seeding:", error); }
-    setLoading(false);
+    // Yield to main thread before heavy write operation
+    setTimeout(async () => {
+      try {
+        const batchPromises = [];
+        for (const subject of INITIAL_SYLLABUS) {
+          const { id, ...data } = subject;
+          batchPromises.push(addDoc(collection(db, "subjects"), sanitizeForFirestore(data)));
+        }
+        for (const exam of INITIAL_EXAMS) {
+          const { id, ...data } = exam;
+          batchPromises.push(addDoc(collection(db, "exams"), sanitizeForFirestore(data)));
+        }
+        await Promise.all(batchPromises);
+      } catch (error) { console.error("Error seeding:", error); }
+      setLoading(false);
+    }, 0);
   }, []);
 
   const handleAddSubject = useCallback(async (newSubject: Subject) => {
@@ -243,25 +247,6 @@ export const Dashboard: React.FC = () => {
     return { nextExam, totalTasks, completedTasks, pendingTasks, completionPercentage, highPriorityPending, overdueCount, subjectProgressData, priorityData, insights };
   }, [subjects, exams]);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    // Disable tooltip on phone for performance
-    if (isPhone) return null;
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-[#020604] border border-lime-500/20 p-2 rounded text-white text-[10px] shadow-xl">
-          <p className="font-bold mb-1 text-lime-300">{label}</p>
-          {payload.map((entry: any, index: number) => (
-             <div key={index} className="flex items-center gap-1.5">
-               <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color || entry.fill }}></span>
-               <span>{entry.name}: {entry.value}</span>
-             </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-10 w-full flex-1">
         {loading ? (
@@ -319,26 +304,11 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex-1 w-full min-h-[250px] sm:ml-0">
                     {chartsReady ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart 
-                          layout={isMobile ? 'vertical' : 'horizontal'} 
-                          data={subjectProgressData} 
-                          margin={{ top: 0, right: 10, left: isMobile ? -10 : -20, bottom: 0 }} 
-                          barSize={isMobile ? 20 : 36}
-                        >
-                          <CartesianGrid vertical={false} horizontal={false} stroke="rgba(255,255,255,0.05)" />
-                          {isMobile ? 
-                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={80} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} /> : 
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600, dy: 10 }} interval={0} />
-                          }
-                          {!isMobile && <YAxis hide={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />}
-                          {!isPhone && <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />}
-                          <Bar dataKey="Completed" stackId="a" fill="url(#limeGradient)" radius={isMobile ? [0, 0, 0, 0] : [0, 0, 0, 0]} isAnimationActive={!isPhone} animationDuration={isPhone ? 0 : 800} />
-                          <Bar dataKey="Remaining" stackId="a" fill="rgba(255, 255, 255, 0.08)" radius={isMobile ? [0, 4, 4, 0] : [4, 4, 0, 0]} isAnimationActive={!isPhone} animationDuration={isPhone ? 0 : 800} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-600">Loading Chart...</div>}>
+                        <SubjectProgressChart data={subjectProgressData} isMobile={isMobile} isPhone={isPhone} />
+                      </Suspense>
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs animate-pulse">Loading Visualization...</div>
+                      <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs animate-pulse">Initializing Visualization...</div>
                     )}
                   </div>
                 </div>
@@ -347,25 +317,9 @@ export const Dashboard: React.FC = () => {
                   <h3 className="font-bold text-white mb-6 flex items-center gap-2 text-lg"><Activity className="w-5 h-5 text-lime-400" /> Priority Mix</h3>
                   <div className="flex-1 w-full relative min-h-[250px]">
                     {chartsReady ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie 
-                            data={priorityData} 
-                            cx="50%" cy="50%" 
-                            innerRadius={isPhone ? 50 : 60} 
-                            outerRadius={isPhone ? 70 : 80} 
-                            paddingAngle={6} 
-                            dataKey="value" 
-                            stroke="none" 
-                            isAnimationActive={!isPhone}
-                            animationDuration={isPhone ? 0 : 800}
-                          >
-                            {priorityData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                          </Pie>
-                          {!isPhone && <Tooltip content={<CustomTooltip />} />}
-                          <Legend iconSize={8} wrapperStyle={{ fontSize: '12px', opacity: 0.7, color: '#94a3b8' }} verticalAlign="bottom" height={36}/>
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-600">Loading Chart...</div>}>
+                        <PriorityMixChart data={priorityData} isPhone={isPhone} />
+                      </Suspense>
                     ) : (
                        <div className="w-full h-full flex items-center justify-center rounded-full border border-white/5"></div>
                     )}
