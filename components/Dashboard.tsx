@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { db } from '../firebase';
 import { 
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, runTransaction 
+  collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy, runTransaction 
 } from 'firebase/firestore';
 
 export const Dashboard: React.FC = () => {
@@ -69,6 +69,7 @@ export const Dashboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // Performance: Use structuredClone for faster deep copies
   const sanitizeForFirestore = (data: any) => {
     if (typeof structuredClone === 'function') return structuredClone(data);
     return JSON.parse(JSON.stringify(data));

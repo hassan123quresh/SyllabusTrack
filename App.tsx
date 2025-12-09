@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Dashboard } from './components/Dashboard';
-import { ResourceManagerPage } from './components/ResourceManagerPage';
+
+import React, { useState, useEffect, Suspense } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { GraduationCap, LayoutDashboard, BookOpen } from 'lucide-react';
+
+// Lazy load components to reduce initial bundle size (Code Splitting)
+const Dashboard = React.lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
+const ResourceManagerPage = React.lazy(() => import('./components/ResourceManagerPage').then(module => ({ default: module.ResourceManagerPage })));
 
 const App: React.FC = () => {
   // Authentication State
@@ -89,10 +92,17 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      {/* Main Content Router */}
+      {/* Main Content Router with Suspense */}
       <main className="w-full flex-1 relative">
-         {currentView === 'dashboard' && <Dashboard />}
-         {currentView === 'resources' && <ResourceManagerPage />}
+         <Suspense fallback={
+           <div className="flex flex-col items-center justify-center min-h-[60vh]">
+             <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
+             <p className="mt-4 text-slate-500 text-sm font-medium animate-pulse">Loading module...</p>
+           </div>
+         }>
+           {currentView === 'dashboard' && <Dashboard />}
+           {currentView === 'resources' && <ResourceManagerPage />}
+         </Suspense>
       </main>
 
     </div>

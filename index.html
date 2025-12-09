@@ -5,6 +5,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Syllabus Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23bef264'/%3E%3Cpath d='M26 11v6 M2 11l12-5 12 5-12 5z M6 14v6c4 0 8 0 12 8l10-8v-6' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round' transform='translate(1, 1)'/%3E%3C/svg%3E" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -31,8 +34,8 @@
       body {
         margin: 0; padding: 0;
         background-color: #020604;
-        /* Performance: Reduced from 6 gradients to 2 */
-        background-image: radial-gradient(circle at 50% 0%, #0d1f12 0%, transparent 60%), radial-gradient(circle at 50% 100%, #06110a 0%, transparent 60%);
+        /* Performance: Simplified gradient stack */
+        background-image: radial-gradient(circle at 50% 0%, #0d1f12 0%, transparent 70%);
         background-attachment: fixed;
         background-size: cover;
         color: #f8fafc;
@@ -42,11 +45,12 @@
       }
       .liquid-blob {
         position: fixed;
-        filter: blur(40px); /* Performance: Reduced blur */
+        filter: blur(40px);
         z-index: -1;
         opacity: 0.3;
         will-change: transform;
-        transform: translateZ(0); /* Force Hardware Acceleration */
+        transform: translateZ(0); /* Hardware acceleration */
+        pointer-events: none;
       }
       ::-webkit-scrollbar { width: 6px; height: 6px; }
       ::-webkit-scrollbar-track { background: transparent; }
@@ -54,19 +58,20 @@
       ::-webkit-scrollbar-thumb:hover { background: rgba(190, 242, 100, 0.3); }
       
       .glass-panel {
-        background: rgba(10, 20, 15, 0.7);
-        backdrop-filter: blur(12px); /* Performance: Reduced blur */
+        background: rgba(10, 20, 15, 0.85); /* Slightly more opaque for performance */
+        backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
       }
       .glass-card {
         background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(8px); /* Performance: Reduced blur */
+        backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         border: 1px solid rgba(255, 255, 255, 0.05);
         transition: transform 0.15s ease-out, background 0.15s ease;
         will-change: transform;
+        transform: translateZ(0);
       }
       .glass-card:hover {
         background: rgba(255, 255, 255, 0.06);
@@ -82,17 +87,18 @@
         border-color: rgba(190, 242, 100, 0.4);
       }
 
-      /* Mobile Performance Overrides */
+      /* Mobile Performance Overrides - Critical for lag reduction */
       @media (max-width: 768px) {
         .liquid-blob {
-          animation: none !important;
-          filter: blur(15px); /* Significant reduction for mobile GPU */
-          opacity: 0.1;
+          display: none; /* Removed completely on mobile to save GPU */
+        }
+        body {
+           background-image: linear-gradient(180deg, #050f08 0%, #020604 100%); /* Cheaper gradient */
         }
         .glass-panel, .glass-card {
-          backdrop-filter: blur(5px) !important;
+          backdrop-filter: blur(5px) !important; /* Minimal blur */
           -webkit-backdrop-filter: blur(5px) !important;
-          background: rgba(10, 20, 15, 0.9); /* Higher opacity, less blur */
+          background: rgba(10, 20, 15, 0.95); /* Nearly opaque */
           box-shadow: none !important;
         }
         .glass-card:hover { transform: none !important; }
