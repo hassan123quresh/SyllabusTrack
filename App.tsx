@@ -56,6 +56,11 @@ const App: React.FC = () => {
             <stop offset="5%" stopColor="#bef264" stopOpacity={1}/>
             <stop offset="95%" stopColor="#84cc16" stopOpacity={0.8}/>
           </linearGradient>
+          {/* Mobile Gradient: Left to Right for horizontal bars, gives a "filling up" effect */}
+          <linearGradient id="limeGradientMobile" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#84cc16" stopOpacity={0.9}/>
+            <stop offset="100%" stopColor="#bef264" stopOpacity={1}/>
+          </linearGradient>
         </defs>
       </svg>
       {/* Navbar */}
@@ -115,3 +120,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+    

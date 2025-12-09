@@ -397,10 +397,11 @@ export const Dashboard: React.FC = () => {
                   onDeleteSubject={handleDeleteSubjectRequest}
                   onDeleteTopic={handleDeleteTopic}
                   onEditTopic={handleEditTopic}
+                  isPhone={isPhone}
                 />
               ))}
-              <button onClick={() => setIsAddSubjectModalOpen(true)} className="min-h-[250px] glass-card rounded-3xl border border-dashed border-white/10 flex flex-col items-center justify-center text-slate-500 hover:text-white hover:border-lime-500/30 hover:bg-white/5 transition-all group">
-                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/5 flex items-center justify-center mb-4 group-hover:scale-110 shadow-lg"><PlusCircle className="w-8 h-8 group-hover:text-lime-400" /></div>
+              <button onClick={() => setIsAddSubjectModalOpen(true)} className="min-h-[150px] sm:min-h-[250px] glass-card rounded-3xl border border-dashed border-white/10 flex flex-col items-center justify-center text-slate-500 hover:text-white hover:border-lime-500/30 hover:bg-white/5 transition-all group">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white/5 border border-white/5 flex items-center justify-center mb-4 group-hover:scale-110 shadow-lg"><PlusCircle className="w-6 h-6 sm:w-8 sm:h-8 group-hover:text-lime-400" /></div>
                 <span className="font-bold text-lg">Add Subject</span>
               </button>
             </div>
