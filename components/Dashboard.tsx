@@ -298,7 +298,7 @@ export const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-10 items-stretch">
               <div className="xl:col-span-2 flex flex-col gap-6 sm:gap-8 h-full">
                 {/* Subject Progress Graph - Maximized margins on mobile */}
-                <div className="glass-panel p-0 sm:p-6 rounded-3xl flex-1 flex flex-col overflow-hidden">
+                <div className="glass-panel p-0 sm:p-6 rounded-3xl flex-1 flex flex-col overflow-hidden min-h-[300px]">
                   <div className="p-4 sm:p-0 pb-0">
                      <h3 className="font-bold text-white mb-2 sm:mb-6 flex items-center gap-2 text-sm sm:text-lg"><TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-lime-400" /> Subject Progress</h3>
                   </div>
@@ -313,9 +313,9 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="glass-panel p-4 sm:p-6 rounded-3xl flex-1 flex flex-col">
-                  <h3 className="font-bold text-white mb-6 flex items-center gap-2 text-lg"><Activity className="w-5 h-5 text-lime-400" /> Priority Mix</h3>
-                  <div className="flex-1 w-full relative min-h-[250px]">
+                <div className="glass-panel p-4 sm:p-6 rounded-3xl h-[320px] shrink-0 flex flex-col">
+                  <h3 className="font-bold text-white mb-4 flex items-center gap-2 text-lg"><Activity className="w-5 h-5 text-lime-400" /> Priority Mix</h3>
+                  <div className="flex-1 w-full relative min-h-0">
                     {chartsReady ? (
                       <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-600">Loading Chart...</div>}>
                         <PriorityMixChart data={priorityData} isPhone={isPhone} />
@@ -330,7 +330,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="glass-panel p-0 rounded-3xl flex flex-col overflow-hidden h-full min-h-[400px] xl:min-h-[500px]">
+              <div className="glass-panel p-0 rounded-3xl flex flex-col overflow-hidden h-full min-h-[400px] xl:min-h-[750px]">
                 <div className="p-4 sm:p-6 border-b border-white/10 bg-gradient-to-br from-emerald-900/40 to-black/40">
                   <h3 className="font-bold text-white flex items-center gap-2 text-lg"><Calendar className="w-5 h-5 text-lime-400" /> Exam Headquarters</h3>
                   <div className="mt-4 sm:mt-6 flex flex-col items-center justify-center text-center p-4 sm:p-6 bg-white/5 rounded-2xl border border-white/10 relative overflow-hidden">
