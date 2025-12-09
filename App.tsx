@@ -56,10 +56,10 @@ const App: React.FC = () => {
             <stop offset="5%" stopColor="#bef264" stopOpacity={1}/>
             <stop offset="95%" stopColor="#84cc16" stopOpacity={0.8}/>
           </linearGradient>
-          {/* Mobile Gradient: Left to Right for horizontal bars, gives a "filling up" effect */}
-          <linearGradient id="limeGradientMobile" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#84cc16" stopOpacity={0.9}/>
-            <stop offset="100%" stopColor="#bef264" stopOpacity={1}/>
+          {/* Mobile Gradient: Vertical Bottom-to-Top to look like it fills from below */}
+          <linearGradient id="limeGradientMobile" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#65a30d" stopOpacity={1}/> {/* Darker Lime at bottom */}
+            <stop offset="100%" stopColor="#bef264" stopOpacity={1}/> {/* Lighter Lime at top */}
           </linearGradient>
         </defs>
       </svg>
@@ -120,4 +120,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-    
