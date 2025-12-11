@@ -13,7 +13,7 @@
     <link rel="dns-prefetch" href="https://firestore.googleapis.com">
     
     <!-- Preload Critical Assets -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
     
     <!-- Critical CSS Inlined (Immediate Paint) -->
     <style>
@@ -35,7 +35,7 @@
     
     <!-- Defer Tailwind to unblock initial HTML parsing -->
     <script src="https://cdn.tailwindcss.com" defer></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
@@ -55,14 +55,13 @@
         box-sizing: border-box;
       }
       body {
-        /* Performance: Static gradient instead of complex layers */
-        background-image: radial-gradient(circle at 50% 0%, #0d1f12 0%, #020604 80%);
-        background-attachment: fixed;
+        /* Performance: Solid color instead of gradient for repaint speed */
+        background-color: #020604;
         -webkit-font-smoothing: antialiased;
         -webkit-tap-highlight-color: transparent;
         overflow-x: hidden;
-        overscroll-behavior-y: none; /* Prevents pull-to-refresh lag on some browsers */
-        text-rendering: optimizeSpeed; /* Performance: favor speed over precision */
+        overscroll-behavior-y: none;
+        text-rendering: optimizeSpeed; 
       }
       
       /* Scrollbar Optimization */
@@ -71,28 +70,14 @@
       ::-webkit-scrollbar-thumb { background: rgba(190, 242, 100, 0.15); border-radius: 3px; }
       ::-webkit-scrollbar-thumb:hover { background: rgba(190, 242, 100, 0.3); }
       
-      /* Desktop: High Fidelity */
+      /* Default Classes */
       .glass-panel {
-        background: rgba(10, 20, 15, 0.85);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background: #08100c;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        will-change: transform; /* Hint for compositor */
-        transform: translateZ(0); /* Force hardware acceleration */
       }
       .glass-card {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+        background: #08100c;
         border: 1px solid rgba(255, 255, 255, 0.05);
-        transition: background 0.1s ease; /* Removed transform transition for speed */
-        will-change: background;
-        transform: translateZ(0);
-      }
-      .glass-card:hover {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: rgba(190, 242, 100, 0.15);
       }
       .glass-input {
         background: rgba(0, 0, 0, 0.4);
@@ -100,34 +85,33 @@
         color: white;
       }
 
-      /* Mobile Performance Critical Overrides (Input Delay & Frame Drop Fixes) */
-      @media (max-width: 768px) {
-        body {
-           background-image: none;
-           background-color: #020604;
+      /* Desktop Enhancements (Only for powerful screens) */
+      @media (min-width: 1024px) {
+        .glass-panel {
+          background: rgba(10, 20, 15, 0.8);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
         }
-        /* DISABLE BLUR: The #1 cause of mobile lag */
-        .glass-panel, .glass-card, nav, div {
+      }
+
+      /* Mobile Performance Hard Enforcement */
+      @media (max-width: 1023px) {
+        /* Kill all blurs and expensive shadows globally */
+        *, *::before, *::after {
           backdrop-filter: none !important;
           -webkit-backdrop-filter: none !important;
           box-shadow: none !important;
+          text-shadow: none !important;
         }
         
-        .glass-panel {
-          background: #08100c !important;
-          border: 1px solid rgba(255,255,255,0.08) !important;
+        .glass-panel, .glass-card {
+          background: #08100c !important; 
         }
         
-        .glass-card {
-          background: #08100c !important;
-          border: 1px solid rgba(255,255,255,0.05) !important;
+        /* Remove transitions on mobile to prevent jank */
+        .glass-card, .glass-panel {
+            transition: none !important;
         }
-        
-        /* Disable hover states on touch devices to prevent sticky styles */
-        .glass-card:hover { background: #08100c !important; border-color: rgba(255, 255, 255, 0.05) !important; }
-        
-        /* Remove animations */
-        * { animation: none !important; transition: none !important; }
         
         /* Native scroll performance */
         ::-webkit-scrollbar { width: 3px; display: none; }
