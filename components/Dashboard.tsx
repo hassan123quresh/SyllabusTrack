@@ -27,6 +27,7 @@ export const Dashboard: React.FC = () => {
   const [isAddingExam, setIsAddingExam] = useState(false);
   const [newExamSubject, setNewExamSubject] = useState('');
   const [newExamDate, setNewExamDate] = useState('');
+  const [newExamTime, setNewExamTime] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
   
@@ -186,8 +187,12 @@ export const Dashboard: React.FC = () => {
   const handleAddExam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newExamSubject.trim() && newExamDate) {
-      await addDoc(collection(db, "exams"), { subject: newExamSubject.trim(), date: newExamDate });
-      setNewExamSubject(''); setNewExamDate(''); setIsAddingExam(false);
+      await addDoc(collection(db, "exams"), sanitizeForFirestore({ 
+        subject: newExamSubject.trim(), 
+        date: newExamDate,
+        time: newExamTime || undefined
+      }));
+      setNewExamSubject(''); setNewExamDate(''); setNewExamTime(''); setIsAddingExam(false);
     }
   };
 
@@ -341,7 +346,10 @@ export const Dashboard: React.FC = () => {
                           <span className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">Next: {nextExam.subject}</span>
                           <div className="text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-white to-lime-200 tracking-tighter">{nextExam.daysLeft}</div>
                           <span className="text-sm font-bold text-lime-400 mt-1 uppercase tracking-wide">Days Left</span>
-                          <span className="text-xs text-slate-500 mt-3 font-medium bg-black/40 px-3 py-1 rounded-full border border-white/5">{new Date(nextExam.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                          <div className="mt-3 flex flex-wrap justify-center gap-2">
+                             <span className="text-xs text-slate-500 font-medium bg-black/40 px-3 py-1 rounded-full border border-white/5">{new Date(nextExam.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                             {nextExam.time && <span className="text-xs text-lime-400 font-bold bg-lime-500/10 px-3 py-1 rounded-full border border-lime-500/20 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-lime-500 rounded-full animate-pulse"></span>{nextExam.time}</span>}
+                          </div>
                         </>
                       ) : <div className="py-6 sm:py-8 text-slate-400 text-sm font-medium">No upcoming exams</div>}
                   </div>
@@ -353,7 +361,10 @@ export const Dashboard: React.FC = () => {
                       <div key={exam.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isPassed ? 'bg-white/5 border-white/5 opacity-50' : 'bg-white/5 border-white/5 hover:border-lime-500/30'}`}>
                           <div className="flex flex-col">
                             <span className={`font-bold text-sm ${isPassed ? 'text-slate-500 line-through' : 'text-white'}`}>{exam.subject}</span>
-                            <span className="text-xs text-slate-400">{new Date(exam.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                               <span>{new Date(exam.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                               {exam.time && <span className="text-slate-200 border-l border-white/10 pl-2 font-bold">{exam.time}</span>}
+                            </div>
                           </div>
                           <button onClick={() => handleDeleteExam(exam.id)} className="p-2 text-slate-500 hover:text-rose-400 hover:bg-white/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
@@ -366,7 +377,10 @@ export const Dashboard: React.FC = () => {
                   ) : (
                     <form onSubmit={handleAddExam} className="flex flex-col gap-2">
                       <input type="text" value={newExamSubject} onChange={e => setNewExamSubject(e.target.value)} placeholder="Subject" className="glass-input text-xs px-3 py-2 rounded-lg" autoFocus />
-                      <input type="date" value={newExamDate} onChange={e => setNewExamDate(e.target.value)} className="glass-input text-xs px-3 py-2 rounded-lg" />
+                      <div className="flex gap-2">
+                         <input type="date" value={newExamDate} onChange={e => setNewExamDate(e.target.value)} className="glass-input flex-1 text-xs px-3 py-2 rounded-lg" required />
+                         <input type="text" value={newExamTime} onChange={e => setNewExamTime(e.target.value)} placeholder="Time (e.g. 1-4 PM)" className="glass-input w-32 text-xs px-2 py-2 rounded-lg text-center" />
+                      </div>
                       <div className="flex gap-2 mt-1">
                           <button type="button" onClick={() => setIsAddingExam(false)} className="flex-1 py-1.5 text-slate-400 text-xs font-bold rounded-lg">Cancel</button>
                           <button type="submit" className="flex-1 py-1.5 bg-lime-400 text-black rounded-lg text-xs font-bold">Save</button>

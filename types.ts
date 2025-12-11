@@ -21,6 +21,7 @@ export interface Exam {
   id: string;
   subject: string;
   date: string; // YYYY-MM-DD
+  time?: string; // HH:mm
 }
 
 export interface ChartDataPoint {

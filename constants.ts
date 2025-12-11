@@ -1,3 +1,4 @@
+
 import { Subject, Exam } from './types';
 
 // Helper to get a future date
@@ -25,18 +26,18 @@ const getExamDate = (month: number, day: number) => {
 };
 
 export const INITIAL_EXAMS: Exam[] = [
-  { id: 'ex-1', subject: 'OOP', date: getExamDate(11, 15) }, // Dec 15
-  { id: 'ex-2', subject: 'Microeconomics', date: getExamDate(11, 17) }, // Dec 17
-  { id: 'ex-3', subject: 'Financial Accounting', date: getExamDate(11, 20) }, // Dec 20
-  { id: 'ex-4', subject: 'Civics', date: getExamDate(11, 26) }, // Dec 26
-  { id: 'ex-5', subject: 'Pak-studies', date: getExamDate(11, 29) }, // Dec 29
-  { id: 'ex-6', subject: 'Maths', date: getExamDate(0, 2) }, // Jan 2
+  { id: 'ex-1', subject: 'Introduction to OOP', date: getExamDate(11, 15), time: '1:00 PM - 4:00 PM' },
+  { id: 'ex-2', subject: 'Microeconomics', date: getExamDate(11, 17), time: '1:00 PM - 4:00 PM' },
+  { id: 'ex-3', subject: 'Financial Accounting', date: getExamDate(11, 20), time: '1:00 PM - 4:00 PM' },
+  { id: 'ex-4', subject: 'Civics & Community Engagement', date: getExamDate(11, 26), time: '1:00 PM - 4:00 PM' },
+  { id: 'ex-5', subject: 'Pakistan Studies', date: getExamDate(11, 29), time: '9:00 AM - 12:00 PM' },
+  { id: 'ex-6', subject: 'Business Maths-II', date: getExamDate(0, 2), time: '9:00 AM - 12:00 PM' },
 ];
 
 export const INITIAL_SYLLABUS: Subject[] = [
   {
     id: 'accounting',
-    title: 'Accounting',
+    title: 'Financial Accounting',
     color: '#3b82f6', // blue-500
     topics: [
       { id: 'acc-1', name: 'Income statement', isCompleted: false, priority: 'High', deadline: getFutureDate(2) },
@@ -49,7 +50,7 @@ export const INITIAL_SYLLABUS: Subject[] = [
   },
   {
     id: 'oop',
-    title: 'OOP',
+    title: 'Introduction to OOP',
     color: '#8b5cf6', // violet-500
     topics: [
       { id: 'oop-1', name: 'Aggregation', isCompleted: false, priority: 'Medium' },
@@ -64,7 +65,7 @@ export const INITIAL_SYLLABUS: Subject[] = [
   },
   {
     id: 'maths',
-    title: 'Maths',
+    title: 'Business Maths-II',
     color: '#ef4444', // red-500
     topics: [
       { id: 'math-1', name: 'Integration', isCompleted: false, priority: 'High', deadline: getFutureDate(10) },
@@ -74,7 +75,7 @@ export const INITIAL_SYLLABUS: Subject[] = [
   },
   {
     id: 'micro',
-    title: 'Micro Economics',
+    title: 'Microeconomics',
     color: '#f59e0b', // amber-500
     topics: [
       { id: 'micro-1', name: 'Chapter 21', isCompleted: false, priority: 'Medium' },
@@ -82,7 +83,7 @@ export const INITIAL_SYLLABUS: Subject[] = [
   },
   {
     id: 'civics',
-    title: 'Civics',
+    title: 'Civics & Community Engagement',
     color: '#10b981', // emerald-500
     topics: [
       { id: 'civics-1', name: 'Chapter 10', isCompleted: false, priority: 'Low' },
@@ -90,7 +91,7 @@ export const INITIAL_SYLLABUS: Subject[] = [
   },
   {
     id: 'pak-study',
-    title: 'Pak-study',
+    title: 'Pakistan Studies',
     color: '#14b8a6', // teal-500
     topics: [
       { id: 'pak-1', name: 'Chapter 12', isCompleted: false, priority: 'Low' },
