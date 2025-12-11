@@ -63,8 +63,8 @@ const App: React.FC = () => {
           </linearGradient>
         </defs>
       </svg>
-      {/* Navbar */}
-      <nav className="sticky top-0 z-30 w-full glass-panel border-b border-white/5 bg-[#020604]/50">
+      {/* Navbar - Floating Rounded on Desktop, Sticky Full on Mobile */}
+      <nav className="sticky top-0 lg:top-4 z-30 w-full lg:w-[calc(100%-2rem)] lg:max-w-7xl lg:mx-auto glass-panel border-b lg:border border-white/5 bg-[#020604]/80 lg:rounded-2xl backdrop-blur-md transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('dashboard')}>
             <div className="bg-gradient-to-br from-lime-400 to-emerald-600 p-2 sm:p-2.5 rounded-xl shadow-[0_0_15px_rgba(163,230,53,0.3)]">
