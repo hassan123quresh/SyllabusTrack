@@ -1,3 +1,4 @@
+
 export type PriorityLevel = 'High' | 'Medium' | 'Low';
 
 export interface Topic {
@@ -6,6 +7,7 @@ export interface Topic {
   isCompleted: boolean;
   priority?: PriorityLevel;
   deadline?: string;
+  link?: string;
 }
 
 export interface Subject {

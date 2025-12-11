@@ -135,7 +135,7 @@ export const Dashboard: React.FC = () => {
     } catch (e) { console.error("Toggle failed:", e); }
   }, []);
 
-  const handleAddTopicToSubject = useCallback(async (subjectId: string, topicName: string, priority: PriorityLevel, deadline?: string) => {
+  const handleAddTopicToSubject = useCallback(async (subjectId: string, topicName: string, priority: PriorityLevel, deadline?: string, link?: string) => {
     const subjectRef = doc(db, "subjects", subjectId);
     try {
       const snap = await getDoc(subjectRef);
@@ -146,7 +146,8 @@ export const Dashboard: React.FC = () => {
           name: topicName,
           isCompleted: false,
           priority,
-          deadline // passing undefined here causes Firestore error
+          deadline,
+          link
         };
         // Sanitize to remove undefined fields
         const safeTopic = sanitizeForFirestore(newTopic);

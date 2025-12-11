@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Subject, PriorityLevel, Topic } from '../types';
-import { CheckCircle2, Circle, Plus, Trash2, Pencil, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle2, Circle, Plus, Trash2, Pencil, Clock, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 interface SubjectCardProps {
   subject: Subject;
   onToggleTopic: (subjectId: string, topicId: string) => void;
-  onAddTopic: (subjectId: string, topicName: string, priority: PriorityLevel, deadline?: string) => void;
+  onAddTopic: (subjectId: string, topicName: string, priority: PriorityLevel, deadline?: string, link?: string) => void;
   onDeleteSubject: (subjectId: string) => void;
   onDeleteTopic: (subjectId: string, topicId: string) => void;
   onEditTopic: (subjectId: string, topic: Topic) => void;
@@ -34,10 +34,13 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
   const [newTopicName, setNewTopicName] = useState('');
   const [newPriority, setNewPriority] = useState<PriorityLevel>('Medium');
   const [newDeadline, setNewDeadline] = useState('');
+  const [newLink, setNewLink] = useState('');
+  
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editPriority, setEditPriority] = useState<PriorityLevel>('Medium');
   const [editDeadline, setEditDeadline] = useState('');
+  const [editLink, setEditLink] = useState('');
 
   // Sync expanded state if orientation changes (desktop to mobile resize)
   useEffect(() => {
@@ -56,19 +59,26 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTopicName.trim()) {
-      onAddTopic(subject.id, newTopicName.trim(), newPriority, newDeadline || undefined);
-      setNewTopicName(''); setNewPriority('Medium'); setNewDeadline(''); setIsAdding(false);
+      onAddTopic(subject.id, newTopicName.trim(), newPriority, newDeadline || undefined, newLink.trim() || undefined);
+      setNewTopicName(''); setNewPriority('Medium'); setNewDeadline(''); setNewLink(''); setIsAdding(false);
     }
   };
 
   const startEditing = (topic: Topic) => {
     setEditingTopicId(topic.id); setEditName(topic.name);
     setEditPriority(topic.priority || 'Medium'); setEditDeadline(topic.deadline || '');
+    setEditLink(topic.link || '');
   };
 
   const saveEdit = (originalTopic: Topic) => {
     if (editName.trim()) {
-      onEditTopic(subject.id, { ...originalTopic, name: editName.trim(), priority: editPriority, deadline: editDeadline || undefined });
+      onEditTopic(subject.id, { 
+        ...originalTopic, 
+        name: editName.trim(), 
+        priority: editPriority, 
+        deadline: editDeadline || undefined,
+        link: editLink.trim() || undefined
+      });
       setEditingTopicId(null);
     }
   };
@@ -121,7 +131,8 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
               if (editingTopicId === topic.id) {
                 return (
                   <li key={topic.id} className="p-4 bg-white/5 backdrop-blur-md border border-lime-500/20 rounded-xl space-y-3 z-20">
-                    <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="glass-input w-full text-sm px-3 py-2 rounded-lg outline-none" autoFocus />
+                    <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="glass-input w-full text-sm px-3 py-2 rounded-lg outline-none" autoFocus placeholder="Topic Name" />
+                    <input type="text" value={editLink} onChange={(e) => setEditLink(e.target.value)} className="glass-input w-full text-sm px-3 py-2 rounded-lg outline-none" placeholder="Link (https://...)" />
                     <div className="grid grid-cols-2 gap-3">
                       <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as PriorityLevel)} className="glass-input w-full text-xs px-2 py-2 rounded-lg">
                           {['High', 'Medium', 'Low'].map(p => <option key={p} value={p} className="text-black">{p}</option>)}
@@ -154,6 +165,12 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                   <div className="flex items-center gap-3 pl-8 text-xs flex-wrap">
                     {topic.priority && <PriorityBadge priority={topic.priority} />}
                     {daysText && <div className={`flex items-center gap-1 ${daysColor} bg-white/5 px-2 py-0.5 rounded-full`}><Clock className="w-3 h-3" /><span>{daysText}</span></div>}
+                    {topic.link && (
+                      <a href={topic.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full hover:bg-sky-500/20 transition-colors border border-sky-500/20" onClick={(e) => e.stopPropagation()}>
+                         <ExternalLink className="w-3 h-3" />
+                         <span className="font-bold">Open Link</span>
+                      </a>
+                    )}
                   </div>
                 </li>
               );
@@ -164,6 +181,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
              {isAdding ? (
                <form onSubmit={handleAddSubmit} className="flex flex-col gap-3 animate-in fade-in bg-white/5 p-4 rounded-xl border border-white/10">
                  <input type="text" value={newTopicName} onChange={e => setNewTopicName(e.target.value)} placeholder="Topic name..." className="glass-input w-full text-sm px-3 py-2 rounded-lg" autoFocus />
+                 <input type="text" value={newLink} onChange={e => setNewLink(e.target.value)} placeholder="Resource Link (optional)..." className="glass-input w-full text-sm px-3 py-2 rounded-lg text-slate-300" />
                  <div className="flex gap-2">
                    <select value={newPriority} onChange={(e) => setNewPriority(e.target.value as PriorityLevel)} className="glass-input text-xs px-2 py-2 rounded-lg text-slate-300">
                      {['High', 'Medium', 'Low'].map(p => <option key={p} value={p} className="text-black">{p}</option>)}
