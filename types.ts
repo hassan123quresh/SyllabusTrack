@@ -35,3 +35,16 @@ export interface Resource {
   content: string; // HTML string
   updatedAt: string;
 }
+
+export interface Surah {
+  number: number;
+  name: string;
+  englishName: string;
+  ayahs: number;
+}
+
+export interface QuranNote {
+  id: string; // Will match the Surah number (e.g., "1", "114")
+  content: string;
+  updatedAt: string;
+}

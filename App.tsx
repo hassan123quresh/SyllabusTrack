@@ -1,20 +1,21 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { LoginScreen } from './components/LoginScreen';
-import { GraduationCap, LayoutDashboard, BookOpen } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, BookOpen, Book } from 'lucide-react';
 
 // Lazy load components to reduce initial bundle size (Code Splitting)
-// We assign these to variables so we can reference them for preloading
 const dashboardImport = () => import('./components/Dashboard').then(module => ({ default: module.Dashboard }));
 const resourcesImport = () => import('./components/ResourceManagerPage').then(module => ({ default: module.ResourceManagerPage }));
+const quranImport = () => import('./components/QuranPage').then(module => ({ default: module.QuranPage }));
 
 const Dashboard = React.lazy(dashboardImport);
 const ResourceManagerPage = React.lazy(resourcesImport);
+const QuranPage = React.lazy(quranImport);
 
 const App: React.FC = () => {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'resources'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'resources' | 'quran'>('dashboard');
 
   // Check login status on mount
   useEffect(() => {
@@ -43,6 +44,7 @@ const App: React.FC = () => {
   // Prefetch logic
   const prefetchDashboard = () => dashboardImport();
   const prefetchResources = () => resourcesImport();
+  const prefetchQuran = () => quranImport();
 
   if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLoginSuccess} />;
@@ -78,11 +80,11 @@ const App: React.FC = () => {
             </h1>
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-4 bg-white/5 p-1 rounded-full border border-white/10 backdrop-blur-md">
+          <div className="flex items-center gap-1 sm:gap-2 bg-white/5 p-1 rounded-full border border-white/10 backdrop-blur-md">
             <button
               onClick={() => setCurrentView('dashboard')}
               onMouseEnter={prefetchDashboard}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
                 currentView === 'dashboard' 
                   ? 'bg-lime-500 text-black shadow-[0_0_15px_rgba(163,230,53,0.3)]' 
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -94,7 +96,7 @@ const App: React.FC = () => {
             <button
               onClick={() => setCurrentView('resources')}
               onMouseEnter={prefetchResources}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
                 currentView === 'resources' 
                   ? 'bg-lime-500 text-black shadow-[0_0_15px_rgba(163,230,53,0.3)]' 
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -102,6 +104,18 @@ const App: React.FC = () => {
             >
               <BookOpen className="w-4 h-4" />
               <span className="hidden sm:inline">Resources</span>
+            </button>
+            <button
+              onClick={() => setCurrentView('quran')}
+              onMouseEnter={prefetchQuran}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
+                currentView === 'quran' 
+                  ? 'bg-lime-500 text-black shadow-[0_0_15px_rgba(163,230,53,0.3)]' 
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Book className="w-4 h-4" />
+              <span className="hidden sm:inline">Quran</span>
             </button>
           </div>
         </div>
@@ -112,6 +126,7 @@ const App: React.FC = () => {
          <Suspense fallback={null}>
            {currentView === 'dashboard' && <Dashboard />}
            {currentView === 'resources' && <ResourceManagerPage />}
+           {currentView === 'quran' && <QuranPage />}
          </Suspense>
       </main>
 
