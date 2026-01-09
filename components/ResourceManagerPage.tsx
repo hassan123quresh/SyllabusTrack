@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Subject, Resource } from '../types';
-import { db } from '../firebase';
-import { collection, onSnapshot, query, doc, setDoc, getDoc } from 'firebase/firestore';
+import { dbService } from '../services/db';
 import { 
   BookOpen, Save, Bold, Italic, Underline, Layout
 } from 'lucide-react';
@@ -19,21 +17,12 @@ export const ResourceManagerPage: React.FC = () => {
 
   // Fetch Subjects for Sidebar
   useEffect(() => {
-    const q = query(collection(db, "subjects"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const subjectsData = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as Subject[];
+    const unsubscribe = dbService.subscribeToSubjects((subjectsData) => {
       setSubjects(subjectsData);
-      
       // Auto-select first subject if none selected
       if (!selectedSubjectId && subjectsData.length > 0) {
         setSelectedSubjectId(subjectsData[0].id);
       }
-      setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching subjects:", error);
       setIsLoading(false);
     });
     return () => unsubscribe();
@@ -46,11 +35,9 @@ export const ResourceManagerPage: React.FC = () => {
     const fetchResource = async () => {
       setIsLoading(true);
       try {
-        const docRef = doc(db, 'resources', selectedSubjectId);
-        const docSnap = await getDoc(docRef);
+        const data = await dbService.getResource(selectedSubjectId);
         
-        if (docSnap.exists()) {
-          const data = docSnap.data() as Resource;
+        if (data) {
           setResourceContent(data.content);
           if (editorRef.current) {
             editorRef.current.innerHTML = data.content;
@@ -87,7 +74,7 @@ export const ResourceManagerPage: React.FC = () => {
         updatedAt: new Date().toISOString()
       };
       
-      await setDoc(doc(db, 'resources', selectedSubjectId), resourceData);
+      await dbService.saveResource(resourceData);
       setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       setResourceContent(content);
     } catch (error) {
@@ -117,7 +104,6 @@ export const ResourceManagerPage: React.FC = () => {
             <Layout className="w-4 h-4 sm:w-5 sm:h-5 text-lime-400" />
             Subjects
           </h3>
-          {/* Mobile: 2-column grid, max-height limited to ~3 rows. Desktop: Vertical flex, taller. */}
           <div className="grid grid-cols-2 md:flex md:flex-col gap-2 overflow-y-auto max-h-[120px] md:max-h-[calc(100vh-250px)] custom-scrollbar pr-1 sm:pr-2 min-h-0">
             {subjects.map(subject => (
               <button

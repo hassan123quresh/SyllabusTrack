@@ -1,20 +1,17 @@
 
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
-import { INITIAL_SYLLABUS, INITIAL_EXAMS } from '../constants';
 import { Subject, Topic, PriorityLevel, Exam } from '../types';
 import { SubjectCard } from './SubjectCard';
 import { AddSubjectModal } from './AddSubjectModal';
 import { ConfirmationModal } from './ConfirmationModal';
 import { 
   Activity, TrendingUp, AlertCircle, Calendar, Trophy, 
-  AlertTriangle, Layers, Trash2, Timer, Plus, CloudUpload, PlusCircle
+  AlertTriangle, Layers, Trash2, Timer, Plus, CloudUpload, PlusCircle, ShieldAlert, Copy,
+  ChevronDown, Clock
 } from 'lucide-react';
-import { db } from '../firebase';
-import { 
-  collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy, getDoc, updateDoc 
-} from 'firebase/firestore';
+import { dbService } from '../services/db';
 
-// Lazy load charts to split bundle and improve LCP/TBT
+// Lazy load charts
 const SubjectProgressChart = React.lazy(() => import('./DashboardCharts').then(module => ({ default: module.SubjectProgressChart })));
 const PriorityMixChart = React.lazy(() => import('./DashboardCharts').then(module => ({ default: module.PriorityMixChart })));
 
@@ -22,28 +19,28 @@ export const Dashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
+  
   const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState<string | null>(null);
   const [isAddingExam, setIsAddingExam] = useState(false);
+  
+  // Add Exam Form State
   const [newExamSubject, setNewExamSubject] = useState('');
-  const [newExamDate, setNewExamDate] = useState('');
-  const [newExamTime, setNewExamTime] = useState('');
+  const [newExamDate, setNewExamDate] = useState<string>('');
+  const [newExamTime, setNewExamTime] = useState<string>('09:00'); // Default time
+
   const [isMobile, setIsMobile] = useState(false);
   const [isPhone, setIsPhone] = useState(false);
-  
-  // Performance: Defer heavy chart rendering until after initial paint
   const [chartsReady, setChartsReady] = useState(false);
 
   useEffect(() => {
-    // Determine screen size efficiently
     const checkScreenSize = () => {
       const width = window.innerWidth;
       setIsMobile(width < 1280);
       setIsPhone(width < 768);
     };
     checkScreenSize();
-    
-    // Debounced resize listener
     let timeoutId: number;
     const debouncedCheck = () => {
       clearTimeout(timeoutId);
@@ -51,11 +48,7 @@ export const Dashboard: React.FC = () => {
     };
     window.addEventListener('resize', debouncedCheck);
     
-    // Defer chart rendering to unblock TBT (Total Blocking Time)
-    // Using setTimeout to yield to main thread for critical first paint
-    const chartTimer = setTimeout(() => {
-      setChartsReady(true);
-    }, 100);
+    const chartTimer = setTimeout(() => setChartsReady(true), 100);
 
     return () => {
       window.removeEventListener('resize', debouncedCheck);
@@ -64,151 +57,160 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
+  // Subscribe to Subjects with Error Handling
   useEffect(() => {
-    const q = query(collection(db, "subjects"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const subjectsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Subject[];
-      setSubjects(subjectsData);
-      setLoading(false);
-    }, (error) => { console.error("Error fetching subjects:", error); setLoading(false); });
+    const unsubscribe = dbService.subscribeToSubjects(
+      (data) => {
+        setSubjects(data);
+        setLoading(false);
+        setDbError(null);
+      },
+      (error) => {
+        if (error?.code === 'permission-denied') {
+          setDbError('permission-denied');
+        } else {
+          setDbError(error.message);
+        }
+        setLoading(false);
+      }
+    );
     return () => unsubscribe();
   }, []);
 
+  // Subscribe to Exams
   useEffect(() => {
-    const q = query(collection(db, "exams"), orderBy("date", "asc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const examsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Exam[];
-      setExams(examsData);
-    }, console.error);
+    const unsubscribe = dbService.subscribeToExams((data) => {
+      const sorted = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      setExams(sorted);
+    });
     return () => unsubscribe();
   }, []);
-
-  // Performance & Safety: JSON.stringify removes 'undefined', which Firestore rejects.
-  // We use this instead of structuredClone to ensure Firestore compatibility.
-  const sanitizeForFirestore = (data: any) => {
-    return JSON.parse(JSON.stringify(data));
-  };
 
   const seedDatabase = useCallback(async () => {
     setLoading(true);
-    // Yield to main thread before heavy write operation
-    setTimeout(async () => {
-      try {
-        const batchPromises = [];
-        for (const subject of INITIAL_SYLLABUS) {
-          const { id, ...data } = subject;
-          batchPromises.push(addDoc(collection(db, "subjects"), sanitizeForFirestore(data)));
-        }
-        for (const exam of INITIAL_EXAMS) {
-          const { id, ...data } = exam;
-          batchPromises.push(addDoc(collection(db, "exams"), sanitizeForFirestore(data)));
-        }
-        await Promise.all(batchPromises);
-      } catch (error) { console.error("Error seeding:", error); }
-      setLoading(false);
-    }, 0);
+    await dbService.seedDatabase();
+    setLoading(false);
   }, []);
 
   const handleAddSubject = useCallback(async (newSubject: Subject) => {
-    const { id, ...subjectData } = newSubject;
-    await addDoc(collection(db, "subjects"), sanitizeForFirestore(subjectData));
+    await dbService.addSubject(newSubject);
   }, []);
 
   const handleDeleteSubjectRequest = useCallback((subjectId: string) => setSubjectToDelete(subjectId), []);
 
   const confirmDeleteSubject = useCallback(async () => {
     if (subjectToDelete) {
-      await deleteDoc(doc(db, "subjects", subjectToDelete));
+      await dbService.deleteSubject(subjectToDelete);
       setSubjectToDelete(null);
     }
   }, [subjectToDelete]);
 
   const handleToggleTopic = useCallback(async (subjectId: string, topicId: string) => {
-    const subjectRef = doc(db, "subjects", subjectId);
-    try {
-      // Use getDoc + updateDoc for better performance and to avoid transaction contention/version errors
-      const snap = await getDoc(subjectRef);
-      if (snap.exists()) {
-        const data = snap.data() as Subject;
-        const updatedTopics = data.topics.map(t => t.id === topicId ? { ...t, isCompleted: !t.isCompleted } : t);
-        await updateDoc(subjectRef, { topics: updatedTopics });
-      }
-    } catch (e) { console.error("Toggle failed:", e); }
-  }, []);
+    const subject = subjects.find(s => s.id === subjectId);
+    if (subject) {
+      const updatedTopics = subject.topics.map(t => t.id === topicId ? { ...t, isCompleted: !t.isCompleted } : t);
+      await dbService.updateSubjectTopics(subjectId, updatedTopics);
+    }
+  }, [subjects]);
 
   const handleAddTopicToSubject = useCallback(async (subjectId: string, topicName: string, priority: PriorityLevel, deadline?: string, link?: string) => {
-    const subjectRef = doc(db, "subjects", subjectId);
-    try {
-      const snap = await getDoc(subjectRef);
-      if (snap.exists()) {
-        const data = snap.data() as Subject;
-        const newTopic: Topic = {
-          id: `topic-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          name: topicName,
-          isCompleted: false,
-          priority,
-          deadline,
-          link
-        };
-        // Sanitize to remove undefined fields
-        const safeTopic = sanitizeForFirestore(newTopic);
-        
-        await updateDoc(subjectRef, { topics: [...data.topics, safeTopic] });
-      }
-    } catch (e) { console.error("Add topic failed:", e); }
-  }, []);
+    const subject = subjects.find(s => s.id === subjectId);
+    if (subject) {
+      const newTopic: Topic = {
+        id: `topic-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        name: topicName,
+        isCompleted: false,
+        priority,
+        deadline,
+        link
+      };
+      await dbService.updateSubjectTopics(subjectId, [...subject.topics, newTopic]);
+    }
+  }, [subjects]);
 
   const handleDeleteTopic = useCallback(async (subjectId: string, topicId: string) => {
-    const subjectRef = doc(db, "subjects", subjectId);
-    try {
-      const snap = await getDoc(subjectRef);
-      if (snap.exists()) {
-        const data = snap.data() as Subject;
-        const updatedTopics = data.topics.filter(t => t.id !== topicId);
-        await updateDoc(subjectRef, { topics: updatedTopics });
-      }
-    } catch (e) { console.error("Delete topic failed:", e); }
-  }, []);
+    const subject = subjects.find(s => s.id === subjectId);
+    if (subject) {
+      const updatedTopics = subject.topics.filter(t => t.id !== topicId);
+      await dbService.updateSubjectTopics(subjectId, updatedTopics);
+    }
+  }, [subjects]);
 
   const handleEditTopic = useCallback(async (subjectId: string, updatedTopic: Topic) => {
-    const subjectRef = doc(db, "subjects", subjectId);
-    try {
-      const snap = await getDoc(subjectRef);
-      if (snap.exists()) {
-        const data = snap.data() as Subject;
-        // Sanitize to remove undefined fields
-        const safeTopic = sanitizeForFirestore(updatedTopic);
-        const updatedTopics = data.topics.map(t => t.id === safeTopic.id ? safeTopic : t);
-        await updateDoc(subjectRef, { topics: updatedTopics });
-      }
-    } catch (e) { console.error("Edit topic failed:", e); }
-  }, []);
+    const subject = subjects.find(s => s.id === subjectId);
+    if (subject) {
+      const updatedTopics = subject.topics.map(t => t.id === updatedTopic.id ? updatedTopic : t);
+      await dbService.updateSubjectTopics(subjectId, updatedTopics);
+    }
+  }, [subjects]);
 
   const handleAddExam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newExamSubject.trim() && newExamDate) {
-      await addDoc(collection(db, "exams"), sanitizeForFirestore({ 
+      await dbService.addExam({
+        id: `exam-${Date.now()}`,
         subject: newExamSubject.trim(), 
         date: newExamDate,
-        time: newExamTime || undefined
-      }));
-      setNewExamSubject(''); setNewExamDate(''); setNewExamTime(''); setIsAddingExam(false);
+        time: newExamTime // Now storing the precise time
+      });
+      setNewExamSubject(''); setNewExamDate(''); setNewExamTime('09:00'); setIsAddingExam(false);
     }
   };
 
   const handleDeleteExam = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, "exams", id));
+    await dbService.deleteExam(id);
   }, []);
+
+  const copyRulesToClipboard = () => {
+    const rules = `rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}`;
+    navigator.clipboard.writeText(rules);
+    alert("Rules copied to clipboard!");
+  };
 
   // Analytics - Memoized
   const { nextExam, totalTasks, completedTasks, pendingTasks, completionPercentage, highPriorityPending, overdueCount, subjectProgressData, priorityData, insights } = useMemo(() => {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const sortedExams = [...exams].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const upcoming = sortedExams.find(e => { const d = new Date(e.date); d.setHours(0,0,0,0); return d >= today; });
+    const now = new Date();
+    
+    // Sort exams by absolute timestamp
+    const sortedExams = [...exams]
+      .map(e => {
+        // Construct full date object: Date + Time (or 00:00 if no time)
+        const dateTimeStr = `${e.date}T${e.time ? e.time : '00:00'}`;
+        const dateTime = new Date(dateTimeStr);
+        return { ...e, dateTime };
+      })
+      .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
+
+    // Find first exam in the future
+    const upcoming = sortedExams.find(e => e.dateTime > now);
+    
     let nextExam = null;
     if (upcoming) {
-      const diffTime = new Date(upcoming.date).setHours(0,0,0,0) - today.getTime();
-      nextExam = { ...upcoming, daysLeft: Math.ceil(diffTime / (86400000)) };
+      const diffMs = upcoming.dateTime.getTime() - now.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+      let timeLeftVal = 0;
+      let timeLeftUnit = '';
+
+      // Less than 3 days (72 hours) -> Show Hours
+      if (diffHours < 72) {
+        timeLeftVal = Math.ceil(diffHours);
+        timeLeftUnit = 'Hours Left';
+      } else {
+        timeLeftVal = Math.ceil(diffDays);
+        timeLeftUnit = 'Days Left';
+      }
+
+      nextExam = { 
+        ...upcoming, 
+        displayVal: timeLeftVal,
+        displayUnit: timeLeftUnit,
+        formattedDate: upcoming.dateTime.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        formattedTime: upcoming.time 
+          ? new Date(`1970-01-01T${upcoming.time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) 
+          : null
+      };
     }
 
     const allTopics = subjects.flatMap(s => s.topics);
@@ -218,6 +220,7 @@ export const Dashboard: React.FC = () => {
     const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
     const highPriorityPending = allTopics.filter(t => t.priority === 'High' && !t.isCompleted).length;
     
+    const today = new Date(); today.setHours(0,0,0,0);
     const overdueCount = allTopics.filter(t => {
       if (t.isCompleted || !t.deadline) return false;
       const d = new Date(t.deadline); d.setHours(0,0,0,0);
@@ -253,16 +256,60 @@ export const Dashboard: React.FC = () => {
     return { nextExam, totalTasks, completedTasks, pendingTasks, completionPercentage, highPriorityPending, overdueCount, subjectProgressData, priorityData, insights };
   }, [subjects, exams]);
 
+  // Error State Render (Firebase Rules Help)
+  if (dbError === 'permission-denied') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 mt-10">
+        <div className="glass-panel p-8 rounded-3xl border border-rose-500/30 bg-rose-900/10">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-rose-500/20 rounded-xl">
+              <ShieldAlert className="w-8 h-8 text-rose-400" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Database Locked</h2>
+              <p className="text-rose-300">Firebase blocked the connection. Security rules need updating.</p>
+            </div>
+          </div>
+
+          <div className="bg-black/50 rounded-xl p-6 border border-white/10 mb-6 font-mono text-sm overflow-x-auto relative group">
+             <button onClick={copyRulesToClipboard} className="absolute top-4 right-4 p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-slate-300 hover:text-white" title="Copy to clipboard">
+               <Copy className="w-4 h-4" />
+             </button>
+             <div className="text-slate-400 mb-2">// Copy and paste this into Firebase Console &gt; Firestore &gt; Rules</div>
+             <div className="text-lime-400">rules_version = '2';</div>
+             <div className="text-pink-400">service</div> <span className="text-white">cloud.firestore {'{'}</span>
+             <div className="pl-4"><span className="text-pink-400">match</span> /databases/{'{'}database{'}'}/documents {'{'}</div>
+             <div className="pl-8"><span className="text-pink-400">match</span> /{' {document=**} '} {'{'}</div>
+             <div className="pl-12 text-emerald-400">allow read, write: if true;</div>
+             <div className="pl-8">{'}'}</div>
+             <div className="pl-4">{'}'}</div>
+             <div className="text-white">{'}'}</div>
+          </div>
+
+          <a 
+            href="https://console.firebase.google.com/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-500 transition-all shadow-lg shadow-rose-600/20"
+          >
+             Open Firebase Console <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-10 w-full flex-1">
         {loading ? (
            <div className="flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-4 text-slate-500 text-sm font-medium animate-pulse">Connecting to Firebase...</p>
            </div>
         ) : (
           <>
             {subjects.length === 0 && exams.length === 0 && (
-              <div className="mb-6 p-6 glass-panel rounded-3xl bg-emerald-900/10 border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="mb-6 p-6 glass-panel rounded-3xl bg-emerald-900/10 border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4">
                  <div>
                    <h3 className="text-xl font-bold text-white text-center sm:text-left">Database is Empty</h3>
                    <p className="text-slate-400 text-sm mt-1 text-center sm:text-left">Upload default syllabus data?</p>
@@ -283,7 +330,7 @@ export const Dashboard: React.FC = () => {
                </div>
             </div>
 
-            {/* Badges Section - Optimized: Single row on mobile with reduced gaps and font sizes */}
+            {/* Badges Section */}
             <div className="grid grid-cols-4 gap-1.5 sm:gap-6 mb-6 sm:mb-10">
               {[
                 { label: 'Tasks', val: totalTasks, icon: Layers, c: 'lime' },
@@ -303,7 +350,7 @@ export const Dashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-10 items-stretch">
               <div className="xl:col-span-2 flex flex-col gap-6 sm:gap-8 h-full">
-                {/* Subject Progress Graph - Maximized margins on mobile */}
+                {/* Subject Progress Graph */}
                 <div className="glass-panel p-0 sm:p-6 rounded-3xl flex-1 flex flex-col overflow-hidden min-h-[300px]">
                   <div className="p-4 sm:p-0 pb-0">
                      <h3 className="font-bold text-white mb-2 sm:mb-6 flex items-center gap-2 text-sm sm:text-lg"><TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-lime-400" /> Subject Progress</h3>
@@ -344,11 +391,11 @@ export const Dashboard: React.FC = () => {
                       {nextExam ? (
                         <>
                           <span className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">Next: {nextExam.subject}</span>
-                          <div className="text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-white to-lime-200 tracking-tighter">{nextExam.daysLeft}</div>
-                          <span className="text-sm font-bold text-lime-400 mt-1 uppercase tracking-wide">Days Left</span>
+                          <div className="text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-white to-lime-200 tracking-tighter">{nextExam.displayVal}</div>
+                          <span className="text-sm font-bold text-lime-400 mt-1 uppercase tracking-wide">{nextExam.displayUnit}</span>
                           <div className="mt-3 flex flex-wrap justify-center gap-2">
-                             <span className="text-xs text-slate-500 font-medium bg-black/40 px-3 py-1 rounded-full border border-white/5">{new Date(nextExam.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                             {nextExam.time && <span className="text-xs text-lime-400 font-bold bg-lime-500/10 px-3 py-1 rounded-full border border-lime-500/20 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-lime-500 rounded-full animate-pulse"></span>{nextExam.time}</span>}
+                             <span className="text-xs text-slate-500 font-medium bg-black/40 px-3 py-1 rounded-full border border-white/5">{nextExam.formattedDate}</span>
+                             {nextExam.formattedTime && <span className="text-xs text-lime-400 font-bold bg-lime-500/10 px-3 py-1 rounded-full border border-lime-500/20 flex items-center gap-1"><Clock className="w-3 h-3" />{nextExam.formattedTime}</span>}
                           </div>
                         </>
                       ) : <div className="py-6 sm:py-8 text-slate-400 text-sm font-medium">No upcoming exams</div>}
@@ -356,14 +403,17 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 space-y-2 sm:space-y-3 bg-black/20">
                   {exams.map((exam) => {
-                    const isPassed = new Date(exam.date).setHours(0,0,0,0) < new Date().setHours(0,0,0,0);
+                    const examDateTime = new Date(`${exam.date}T${exam.time || '00:00'}`);
+                    const isPassed = examDateTime < new Date();
+                    const formattedTime = exam.time ? new Date(`1970-01-01T${exam.time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+                    
                     return (
                       <div key={exam.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isPassed ? 'bg-white/5 border-white/5 opacity-50' : 'bg-white/5 border-white/5 hover:border-lime-500/30'}`}>
                           <div className="flex flex-col">
                             <span className={`font-bold text-sm ${isPassed ? 'text-slate-500 line-through' : 'text-white'}`}>{exam.subject}</span>
                             <div className="flex items-center gap-2 text-xs text-slate-400">
                                <span>{new Date(exam.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                               {exam.time && <span className="text-slate-200 border-l border-white/10 pl-2 font-bold">{exam.time}</span>}
+                               {formattedTime && <span className="text-slate-200 border-l border-white/10 pl-2 font-bold">{formattedTime}</span>}
                             </div>
                           </div>
                           <button onClick={() => handleDeleteExam(exam.id)} className="p-2 text-slate-500 hover:text-rose-400 hover:bg-white/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
@@ -375,15 +425,49 @@ export const Dashboard: React.FC = () => {
                   {!isAddingExam ? (
                       <button onClick={() => setIsAddingExam(true)} className="w-full py-2 bg-lime-500/20 text-lime-300 border border-lime-500/30 rounded-lg text-xs font-bold hover:bg-lime-400 hover:text-black transition-all flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> Add Exam</button>
                   ) : (
-                    <form onSubmit={handleAddExam} className="flex flex-col gap-2">
-                      <input type="text" value={newExamSubject} onChange={e => setNewExamSubject(e.target.value)} placeholder="Subject" className="glass-input text-xs px-3 py-2 rounded-lg" autoFocus />
-                      <div className="flex gap-2">
-                         <input type="date" value={newExamDate} onChange={e => setNewExamDate(e.target.value)} className="glass-input flex-1 text-xs px-3 py-2 rounded-lg" required />
-                         <input type="text" value={newExamTime} onChange={e => setNewExamTime(e.target.value)} placeholder="Time (e.g. 1-4 PM)" className="glass-input w-32 text-xs px-2 py-2 rounded-lg text-center" />
+                    <form onSubmit={handleAddExam} className="flex flex-col gap-3 animate-in slide-in-from-bottom-2">
+                      <input 
+                         type="text" 
+                         value={newExamSubject} 
+                         onChange={e => setNewExamSubject(e.target.value)} 
+                         placeholder="Subject Name" 
+                         className="glass-input text-xs px-3 py-2.5 rounded-lg w-full" 
+                         autoFocus 
+                      />
+                      
+                      <div className="flex gap-4">
+                        <div className="flex flex-col gap-1.5 flex-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase px-1">Date</label>
+                          <div className="relative">
+                            <input 
+                              type="date" 
+                              value={newExamDate} 
+                              onChange={e => setNewExamDate(e.target.value)} 
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                              required 
+                            />
+                            <div className={`glass-input w-full px-3 py-2 rounded-lg text-xs font-normal flex items-center justify-between ${!newExamDate ? 'text-slate-500' : 'text-white'}`}>
+                              {newExamDate ? new Date(newExamDate).toLocaleDateString() : "Select date"}
+                              <ChevronDown className="w-3 h-3 opacity-50" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 w-24 sm:w-32">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase px-1">Time</label>
+                          <input 
+                            type="time" 
+                            value={newExamTime} 
+                            onChange={e => setNewExamTime(e.target.value)} 
+                            className="glass-input w-full text-xs px-2 py-2 rounded-lg text-center"
+                            step="60"
+                          />
+                        </div>
                       </div>
-                      <div className="flex gap-2 mt-1">
-                          <button type="button" onClick={() => setIsAddingExam(false)} className="flex-1 py-1.5 text-slate-400 text-xs font-bold rounded-lg">Cancel</button>
-                          <button type="submit" className="flex-1 py-1.5 bg-lime-400 text-black rounded-lg text-xs font-bold">Save</button>
+
+                      <div className="flex gap-2 mt-2">
+                          <button type="button" onClick={() => setIsAddingExam(false)} className="flex-1 py-2 text-slate-400 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5 transition-colors">Cancel</button>
+                          <button type="submit" disabled={!newExamSubject || !newExamDate} className="flex-1 py-2 bg-lime-400 text-black rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-lime-300 transition-colors">Save Exam</button>
                       </div>
                     </form>
                   )}

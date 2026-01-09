@@ -1,9 +1,6 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { SURAH_LIST } from '../constants';
-import { QuranNote } from '../types';
-import { db } from '../firebase';
-import { collection, onSnapshot, query, doc, setDoc } from 'firebase/firestore';
+import { dbService } from '../services/db';
 import { Book, Save, Search, FileText, Eye, PenLine } from 'lucide-react';
 
 // Lightweight Markdown Component
@@ -12,7 +9,6 @@ const MarkdownPreview = ({ content }: { content: string }) => {
   
   const parseInline = (text: string) => {
     // Split by bold (**...**) and italic (*...*)
-    // This is a basic parser.
     const parts = text.split(/(\*\*.*?\*\*)|(\*.*?\*)/g).filter(Boolean);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
@@ -30,7 +26,6 @@ const MarkdownPreview = ({ content }: { content: string }) => {
       {lines.map((line, index) => {
         const trimmed = line.trim();
         
-        // Headers
         if (line.startsWith('### ')) {
           return <h3 key={index} className="text-lime-400 font-bold text-lg mt-8 mb-3 flex items-center gap-2">{parseInline(line.slice(4))}</h3>;
         }
@@ -41,12 +36,10 @@ const MarkdownPreview = ({ content }: { content: string }) => {
           return <h1 key={index} className="text-2xl sm:text-3xl font-bold text-white mt-2 mb-8">{parseInline(line.slice(2))}</h1>;
         }
         
-        // Blockquote
         if (line.startsWith('> ')) {
           return <blockquote key={index} className="border-l-4 border-lime-500/30 pl-4 italic text-slate-400 my-4 bg-white/5 py-2 rounded-r-lg">{parseInline(line.slice(2))}</blockquote>;
         }
 
-        // List Item
         if (trimmed.startsWith('- ')) {
           return (
             <div key={index} className="flex items-start gap-3 ml-2 mb-2">
@@ -56,12 +49,10 @@ const MarkdownPreview = ({ content }: { content: string }) => {
           );
         }
 
-        // Empty Line
         if (!trimmed) {
           return <div key={index} className="h-4"></div>;
         }
 
-        // Regular Paragraph
         return <p key={index} className="mb-2">{parseInline(line)}</p>;
       })}
     </div>
@@ -80,23 +71,19 @@ export const QuranPage: React.FC = () => {
 
   // Load all notes initially for search capability
   useEffect(() => {
-    const q = query(collection(db, "quran_notes"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = dbService.subscribeToQuranNotes((notes) => {
+      // notes is Record<string, QuranNote>
       const map: Record<string, string> = {};
-      snapshot.docs.forEach(doc => {
-        const data = doc.data() as QuranNote;
-        map[doc.id] = data.content;
+      Object.values(notes).forEach(note => {
+        map[note.id] = note.content;
       });
       setNotesMap(map);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching quran notes:", error);
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Filter Logic: Matches Surah Name OR Note Content
+  // Filter Logic
   const filteredSurahs = useMemo(() => {
     const lowerQuery = searchQuery.toLowerCase().trim();
     if (!lowerQuery) return SURAH_LIST;
@@ -115,7 +102,6 @@ export const QuranPage: React.FC = () => {
   // Load selected note or generate template
   useEffect(() => {
     if (selectedSurahId === null) {
-        // Default to first if list is not empty and none selected
         if(filteredSurahs.length > 0) setSelectedSurahId(filteredSurahs[0].number);
         return;
     }
@@ -142,7 +128,7 @@ export const QuranPage: React.FC = () => {
     setIsSaving(true);
     try {
       const id = selectedSurahId.toString();
-      await setDoc(doc(db, 'quran_notes', id), {
+      await dbService.saveQuranNote({
         id,
         content: noteContent,
         updatedAt: new Date().toISOString()
