@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { Subject, Topic, PriorityLevel, Exam } from '../types';
 import { SubjectCard } from './SubjectCard';
@@ -35,6 +34,14 @@ export const Dashboard: React.FC = () => {
   const [chartsReady, setChartsReady] = useState(false);
 
   useEffect(() => {
+    // Hidden feature to reset app for users who can't delete data
+    (window as any).resetApp = async () => {
+      if (confirm('EMERGENCY RESET: Delete all data?')) {
+        await dbService.clearAllData();
+        alert('Data cleared. You can now upload the new syllabus.');
+      }
+    };
+
     const checkScreenSize = () => {
       const width = window.innerWidth;
       setIsMobile(width < 1280);
@@ -54,6 +61,7 @@ export const Dashboard: React.FC = () => {
       window.removeEventListener('resize', debouncedCheck);
       clearTimeout(timeoutId);
       clearTimeout(chartTimer);
+      delete (window as any).resetApp;
     };
   }, []);
 
@@ -100,7 +108,12 @@ export const Dashboard: React.FC = () => {
 
   const confirmDeleteSubject = useCallback(async () => {
     if (subjectToDelete) {
-      await dbService.deleteSubject(subjectToDelete);
+      try {
+        await dbService.deleteSubject(subjectToDelete);
+      } catch (error) {
+        console.error("Failed to delete subject:", error);
+        alert("Failed to delete subject. Please check your connection.");
+      }
       setSubjectToDelete(null);
     }
   }, [subjectToDelete]);
@@ -158,7 +171,12 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleDeleteExam = useCallback(async (id: string) => {
-    await dbService.deleteExam(id);
+    try {
+      await dbService.deleteExam(id);
+    } catch (error) {
+       console.error("Failed to delete exam:", error);
+       alert("Failed to delete exam.");
+    }
   }, []);
 
   const copyRulesToClipboard = () => {
@@ -426,14 +444,21 @@ export const Dashboard: React.FC = () => {
                       <button onClick={() => setIsAddingExam(true)} className="w-full py-2 bg-lime-500/20 text-lime-300 border border-lime-500/30 rounded-lg text-xs font-bold hover:bg-lime-400 hover:text-black transition-all flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> Add Exam</button>
                   ) : (
                     <form onSubmit={handleAddExam} className="flex flex-col gap-3 animate-in slide-in-from-bottom-2">
-                      <input 
-                         type="text" 
-                         value={newExamSubject} 
-                         onChange={e => setNewExamSubject(e.target.value)} 
-                         placeholder="Subject Name" 
-                         className="glass-input text-xs px-3 py-2.5 rounded-lg w-full" 
-                         autoFocus 
-                      />
+                      <div className="relative">
+                        <select
+                           value={newExamSubject}
+                           onChange={e => setNewExamSubject(e.target.value)}
+                           className="glass-input text-xs px-3 py-2.5 rounded-lg w-full appearance-none cursor-pointer"
+                           autoFocus
+                           required
+                        >
+                          <option value="" disabled className="bg-[#050b07] text-slate-500">Select Subject</option>
+                          {subjects.map((s) => (
+                            <option key={s.id} value={s.title} className="bg-[#050b07] text-white">{s.title}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                      </div>
                       
                       <div className="flex gap-4">
                         <div className="flex flex-col gap-1.5 flex-1">

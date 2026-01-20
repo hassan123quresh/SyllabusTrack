@@ -26,75 +26,103 @@ const getExamDate = (month: number, day: number) => {
 };
 
 export const INITIAL_EXAMS: Exam[] = [
-  { id: 'ex-1', subject: 'Introduction to OOP', date: getExamDate(11, 15), time: '1:00 PM - 4:00 PM' },
-  { id: 'ex-2', subject: 'Microeconomics', date: getExamDate(11, 17), time: '1:00 PM - 4:00 PM' },
-  { id: 'ex-3', subject: 'Financial Accounting', date: getExamDate(11, 20), time: '1:00 PM - 4:00 PM' },
-  { id: 'ex-4', subject: 'Civics & Community Engagement', date: getExamDate(11, 26), time: '1:00 PM - 4:00 PM' },
-  { id: 'ex-5', subject: 'Pakistan Studies', date: getExamDate(11, 29), time: '9:00 AM - 12:00 PM' },
-  { id: 'ex-6', subject: 'Business Maths-II', date: getExamDate(0, 2), time: '9:00 AM - 12:00 PM' },
+  { id: 'ex-1', subject: 'Business Finance', date: getExamDate(11, 15), time: '1:00 PM - 4:00 PM' },
+  { id: 'ex-2', subject: 'Data Analysis II', date: getExamDate(11, 17), time: '1:00 PM - 4:00 PM' },
+  { id: 'ex-3', subject: 'Intro to DB Systems', date: getExamDate(11, 20), time: '1:00 PM - 4:00 PM' },
+  { id: 'ex-4', subject: 'Ideology of Pakistan', date: getExamDate(11, 26), time: '1:00 PM - 4:00 PM' },
+  { id: 'ex-5', subject: 'Environmental Science', date: getExamDate(11, 29), time: '9:00 AM - 12:00 PM' },
 ];
 
 export const INITIAL_SYLLABUS: Subject[] = [
   {
-    id: 'accounting',
-    title: 'Financial Accounting',
+    id: 'bus-fin',
+    title: 'Business Finance',
     color: '#3b82f6', // blue-500
     topics: [
-      { id: 'acc-1', name: 'Income statement', isCompleted: false, priority: 'High', deadline: getFutureDate(2) },
-      { id: 'acc-2', name: 'Balance sheet', isCompleted: false, priority: 'High', deadline: getFutureDate(5) },
-      { id: 'acc-3', name: 'Socie', isCompleted: false, priority: 'Medium' },
-      { id: 'acc-4', name: 'Cash flow statement', isCompleted: false, priority: 'Medium' },
-      { id: 'acc-5', name: 'Ratios', isCompleted: false, priority: 'Low' },
-      { id: 'acc-6', name: 'Partnerships', isCompleted: false, priority: 'Low' },
+      { id: 'bf-1', name: 'Time Value of Money', isCompleted: false, priority: 'High', deadline: getFutureDate(3) },
+      { id: 'bf-2', name: 'Risk and Return', isCompleted: false, priority: 'Medium' },
+      { id: 'bf-3', name: 'Bond Valuation', isCompleted: false, priority: 'Medium' },
+      { id: 'bf-4', name: 'Stock Valuation', isCompleted: false, priority: 'Low' },
     ],
   },
   {
-    id: 'oop',
-    title: 'Introduction to OOP',
+    id: 'crit-think',
+    title: 'Critical Thinking',
     color: '#8b5cf6', // violet-500
     topics: [
-      { id: 'oop-1', name: 'Aggregation', isCompleted: false, priority: 'Medium' },
-      { id: 'oop-2', name: 'Composition', isCompleted: false, priority: 'Medium' },
-      { id: 'oop-3', name: 'Association', isCompleted: false, priority: 'Low' },
-      { id: 'oop-4', name: 'Operator overloading', isCompleted: false, priority: 'High', deadline: getFutureDate(3) },
-      { id: 'oop-5', name: 'File handling (CSV, txt)', isCompleted: false, priority: 'High', deadline: getFutureDate(7) },
-      { id: 'oop-6', name: 'Exception handling', isCompleted: false, priority: 'Medium' },
-      { id: 'oop-7', name: 'Abstraction handling', isCompleted: false, priority: 'Medium' },
-      { id: 'oop-8', name: 'UML (complete)', isCompleted: false, priority: 'Low' },
+      { id: 'ct-1', name: 'Analysis of Arguments', isCompleted: false, priority: 'Medium', deadline: getFutureDate(5) },
+      { id: 'ct-2', name: 'Deductive Reasoning', isCompleted: false, priority: 'Medium' },
+      { id: 'ct-3', name: 'Inductive Reasoning', isCompleted: false, priority: 'Low' },
+      { id: 'ct-4', name: 'Fallacies', isCompleted: false, priority: 'High' },
     ],
   },
   {
-    id: 'maths',
-    title: 'Business Maths-II',
-    color: '#ef4444', // red-500
-    topics: [
-      { id: 'math-1', name: 'Integration', isCompleted: false, priority: 'High', deadline: getFutureDate(10) },
-      { id: 'math-2', name: 'Derivative', isCompleted: false, priority: 'High', deadline: getFutureDate(12) },
-      { id: 'math-3', name: 'Simplex method', isCompleted: false, priority: 'Low' },
-    ],
-  },
-  {
-    id: 'micro',
-    title: 'Microeconomics',
-    color: '#f59e0b', // amber-500
-    topics: [
-      { id: 'micro-1', name: 'Chapter 21', isCompleted: false, priority: 'Medium' },
-    ],
-  },
-  {
-    id: 'civics',
-    title: 'Civics & Community Engagement',
+    id: 'data-anl-2',
+    title: 'Data Analysis for Business II',
     color: '#10b981', // emerald-500
     topics: [
-      { id: 'civics-1', name: 'Chapter 10', isCompleted: false, priority: 'Low' },
+      { id: 'da2-1', name: 'Multiple Regression', isCompleted: false, priority: 'High', deadline: getFutureDate(7) },
+      { id: 'da2-2', name: 'Hypothesis Testing', isCompleted: false, priority: 'High' },
+      { id: 'da2-3', name: 'ANOVA', isCompleted: false, priority: 'Medium' },
     ],
   },
   {
-    id: 'pak-study',
-    title: 'Pakistan Studies',
+    id: 'data-anl-lab',
+    title: 'Data Analysis for Business II - Lab',
     color: '#14b8a6', // teal-500
     topics: [
-      { id: 'pak-1', name: 'Chapter 12', isCompleted: false, priority: 'Low' },
+      { id: 'dal-1', name: 'SPSS Regression Lab', isCompleted: false, priority: 'Medium' },
+      { id: 'dal-2', name: 'Excel Data Tools', isCompleted: false, priority: 'Low' },
+    ],
+  },
+  {
+    id: 'env-sci',
+    title: 'Environmental Science and Sustainability for Business',
+    color: '#84cc16', // lime-500
+    topics: [
+      { id: 'env-1', name: 'Ecosystems & Business', isCompleted: false, priority: 'Low' },
+      { id: 'env-2', name: 'Corporate Sustainability', isCompleted: false, priority: 'Medium' },
+      { id: 'env-3', name: 'Climate Change Impact', isCompleted: false, priority: 'High' },
+    ],
+  },
+  {
+    id: 'ideology',
+    title: 'Ideology and Constitution of Pakistan',
+    color: '#f59e0b', // amber-500
+    topics: [
+      { id: 'ideo-1', name: 'Two Nation Theory', isCompleted: false, priority: 'Low' },
+      { id: 'ideo-2', name: 'Constitution of 1973', isCompleted: false, priority: 'High' },
+      { id: 'ideo-3', name: 'Political History', isCompleted: false, priority: 'Medium' },
+    ],
+  },
+  {
+    id: 'db-sys',
+    title: 'Introduction to Database Systems',
+    color: '#f43f5e', // rose-500
+    topics: [
+      { id: 'db-1', name: 'ER Diagrams', isCompleted: false, priority: 'High', deadline: getFutureDate(4) },
+      { id: 'db-2', name: 'Relational Model', isCompleted: false, priority: 'High' },
+      { id: 'db-3', name: 'Normalization', isCompleted: false, priority: 'Medium' },
+      { id: 'db-4', name: 'SQL Basics', isCompleted: false, priority: 'Medium' },
+    ],
+  },
+  {
+    id: 'db-sys-lab',
+    title: 'Introduction to Database Systems - Lab',
+    color: '#ec4899', // pink-500
+    topics: [
+      { id: 'dbl-1', name: 'Lab 01: Environment Setup', isCompleted: false, priority: 'Low' },
+      { id: 'dbl-2', name: 'Lab 02: Basic Queries', isCompleted: false, priority: 'Medium' },
+    ],
+  },
+  {
+    id: 'sirat',
+    title: 'Understanding Sirat-Un-Nabi (PBUH)',
+    color: '#6366f1', // indigo-500
+    topics: [
+      { id: 'sir-1', name: 'Life in Makkah', isCompleted: false, priority: 'Medium' },
+      { id: 'sir-2', name: 'Migration to Madinah', isCompleted: false, priority: 'Medium' },
+      { id: 'sir-3', name: 'Key Battles', isCompleted: false, priority: 'Low' },
     ],
   },
 ];

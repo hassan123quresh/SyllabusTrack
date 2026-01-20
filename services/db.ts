@@ -7,23 +7,39 @@ import {
   updateDoc, 
   onSnapshot, 
   getDoc,
-  writeBatch
+  writeBatch,
+  getDocs
 } from 'firebase/firestore';
 import { Subject, Exam, Resource, QuranNote, Topic } from '../types';
 import { INITIAL_SYLLABUS, INITIAL_EXAMS } from '../constants';
 
-// Firestore rejects undefined values. This helper removes them recursively.
+// Helper to recursively clean data for Firestore
+// 1. Removes undefined keys from objects (Firestore doesn't accept undefined)
+// 2. Removes null AND undefined items from arrays (Prevent sparse arrays)
+// 3. Converts Dates to strings
 const cleanData = (data: any): any => {
+  if (data === undefined) return undefined;
+  if (data === null) return null;
+  
+  if (data instanceof Date) return data.toISOString();
+
   if (Array.isArray(data)) {
-    return data.map(item => cleanData(item));
-  } else if (data !== null && typeof data === 'object') {
-    return Object.entries(data).reduce((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key] = cleanData(value);
+    return data
+      .map(item => cleanData(item))
+      .filter(item => item !== undefined && item !== null);
+  } 
+  
+  if (typeof data === 'object') {
+    const result: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      const cleaned = cleanData(value);
+      if (cleaned !== undefined) {
+        result[key] = cleaned;
       }
-      return acc;
-    }, {} as any);
+    }
+    return result;
   }
+
   return data;
 };
 
@@ -31,7 +47,31 @@ export const dbService = {
   // --- Subjects ---
   subscribeToSubjects: (cb: (data: Subject[]) => void, onError?: (error: any) => void) => {
     return onSnapshot(collection(db, 'subjects'), (snapshot) => {
-      const subjects = snapshot.docs.map(doc => doc.data() as Subject);
+      const subjects = snapshot.docs.map(doc => {
+         const data = doc.data() as Subject;
+         
+         // CRITICAL FIX: Ensure the internal ID matches the Document ID.
+         // This fixes issues where legacy data couldn't be deleted/updated.
+         data.id = doc.id; 
+
+         // Defensive: Ensure topics is array
+         if (!data.topics || !Array.isArray(data.topics)) {
+            data.topics = [];
+         } else {
+            // Auto-Repair: Fix topics that might be missing IDs from older versions of the app
+            // Instead of filtering them out, we assign them a temporary ID so they can be rendered and edited.
+            data.topics = data.topics.map((t: any) => {
+               if (!t || typeof t !== 'object') return null;
+               
+               // If it's a legacy topic without an ID, generate one to make it editable
+               if (!t.id) {
+                 t.id = `repaired-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+               }
+               return t;
+            }).filter(t => t !== null) as Topic[];
+         }
+         return data;
+      });
       cb(subjects);
     }, (error) => {
       console.error("Error connecting to Subjects collection:", error);
@@ -40,38 +80,93 @@ export const dbService = {
   },
   
   addSubject: async (subject: Subject) => {
-    await setDoc(doc(db, 'subjects', subject.id), cleanData(subject));
+    try {
+      const cleanedSubject = cleanData(subject);
+      if (!cleanedSubject) throw new Error("Invalid subject data");
+      await setDoc(doc(db, 'subjects', subject.id), cleanedSubject);
+    } catch (e) {
+      console.error("Error adding subject", e);
+      throw e;
+    }
   },
   
   deleteSubject: async (id: string) => {
-    await deleteDoc(doc(db, 'subjects', id));
+    try {
+      await deleteDoc(doc(db, 'subjects', id));
+    } catch (e) {
+      console.error("Error deleting subject", e);
+      throw e;
+    }
   },
 
   updateSubjectTopics: async (subjectId: string, topics: Topic[]) => {
-    const subjectRef = doc(db, 'subjects', subjectId);
-    await updateDoc(subjectRef, { topics: cleanData(topics) });
+    try {
+      const subjectRef = doc(db, 'subjects', subjectId);
+      const cleanedTopics = cleanData(topics);
+      // Double check specifically for topics array
+      if (!Array.isArray(cleanedTopics)) {
+        throw new Error("Topics must be an array");
+      }
+      await updateDoc(subjectRef, { topics: cleanedTopics });
+    } catch (e) {
+      console.error("Error updating topics", e);
+      throw e;
+    }
   },
 
   seedDatabase: async () => {
+    try {
       const batch = writeBatch(db);
       
       INITIAL_SYLLABUS.forEach(subject => {
           const ref = doc(db, 'subjects', subject.id);
-          batch.set(ref, cleanData(subject));
+          const cleaned = cleanData(subject);
+          if (cleaned) batch.set(ref, cleaned);
       });
       
       INITIAL_EXAMS.forEach(exam => {
           const ref = doc(db, 'exams', exam.id);
-          batch.set(ref, cleanData(exam));
+          const cleaned = cleanData(exam);
+          if (cleaned) batch.set(ref, cleaned);
       });
 
       await batch.commit();
+    } catch (e) {
+      console.error("Error seeding database", e);
+      throw e;
+    }
+  },
+
+  clearAllData: async () => {
+    try {
+      const collections = ['subjects', 'exams', 'resources'];
+      
+      for (const col of collections) {
+         const snapshot = await getDocs(collection(db, col));
+         if (snapshot.empty) continue;
+
+         const batch = writeBatch(db);
+         snapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+         });
+         await batch.commit();
+      }
+      console.log("Database cleared successfully");
+    } catch (e) {
+      console.error("Error clearing database", e);
+      throw e;
+    }
   },
 
   // --- Exams ---
   subscribeToExams: (cb: (data: Exam[]) => void, onError?: (error: any) => void) => {
     return onSnapshot(collection(db, 'exams'), (snapshot) => {
-        const exams = snapshot.docs.map(doc => doc.data() as Exam);
+        const exams = snapshot.docs.map(doc => {
+          const data = doc.data() as Exam;
+          // CRITICAL FIX: Ensure ID matches Document ID
+          data.id = doc.id;
+          return data;
+        });
         cb(exams);
     }, (error) => {
       console.error("Error connecting to Exams collection:", error);
@@ -84,7 +179,12 @@ export const dbService = {
   },
   
   deleteExam: async (id: string) => {
-    await deleteDoc(doc(db, 'exams', id));
+    try {
+        await deleteDoc(doc(db, 'exams', id));
+    } catch (e) {
+        console.error("Error deleting exam", e);
+        throw e;
+    }
   },
 
   // --- Resources ---
