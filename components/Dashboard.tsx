@@ -14,7 +14,6 @@ import { Calendar } from 'primereact/calendar';
 
 // Lazy load charts
 const SubjectProgressChart = React.lazy(() => import('./DashboardCharts').then(module => ({ default: module.SubjectProgressChart })));
-const PriorityMixChart = React.lazy(() => import('./DashboardCharts').then(module => ({ default: module.PriorityMixChart })));
 
 export const Dashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -188,7 +187,7 @@ export const Dashboard: React.FC = () => {
   };
 
   // Analytics - Memoized
-  const { nextExam, totalTasks, completedTasks, pendingTasks, completionPercentage, highPriorityPending, overdueCount, subjectProgressData, priorityData, insights } = useMemo(() => {
+  const { nextExam, totalTasks, completedTasks, pendingTasks, completionPercentage, highPriorityPending, overdueCount, subjectProgressData, insights } = useMemo(() => {
     const now = new Date();
     
     // Sort exams by absolute timestamp
@@ -254,14 +253,6 @@ export const Dashboard: React.FC = () => {
       color: s.color
     }));
 
-    const pending = allTopics.filter(t => !t.isCompleted);
-    const priorityData = [
-      { name: 'High', value: pending.filter(t => t.priority === 'High').length, color: '#fb7185' },
-      { name: 'Medium', value: pending.filter(t => t.priority === 'Medium').length, color: '#fbbf24' },
-      { name: 'Low', value: pending.filter(t => t.priority === 'Low').length, color: '#34d399' }
-    ].filter(d => d.value > 0);
-    if (priorityData.length === 0) priorityData.push({ name: 'None', value: 1, color: 'rgba(255,255,255,0.1)' });
-
     const insights = [];
     subjects.forEach(s => {
       const done = s.topics.filter(t => t.isCompleted).length;
@@ -273,7 +264,7 @@ export const Dashboard: React.FC = () => {
     });
     if (insights.length === 0) insights.push({ id: 'tip-1', type: 'info', text: "Tip: Add deadlines to track overdue tasks" });
 
-    return { nextExam, totalTasks, completedTasks, pendingTasks, completionPercentage, highPriorityPending, overdueCount, subjectProgressData, priorityData, insights };
+    return { nextExam, totalTasks, completedTasks, pendingTasks, completionPercentage, highPriorityPending, overdueCount, subjectProgressData, insights };
   }, [subjects, exams]);
 
   // Error State Render (Firebase Rules Help)
@@ -383,22 +374,6 @@ export const Dashboard: React.FC = () => {
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs animate-pulse">Initializing Visualization...</div>
                     )}
-                  </div>
-                </div>
-
-                <div className="glass-panel p-4 sm:p-6 rounded-3xl h-[320px] shrink-0 flex flex-col">
-                  <h3 className="font-bold text-white mb-4 flex items-center gap-2 text-lg"><Activity className="w-5 h-5 text-lime-400" /> Priority Mix</h3>
-                  <div className="flex-1 w-full relative min-h-0">
-                    {chartsReady ? (
-                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-600">Loading Chart...</div>}>
-                        <PriorityMixChart data={priorityData} isPhone={isPhone} />
-                      </Suspense>
-                    ) : (
-                       <div className="w-full h-full flex items-center justify-center rounded-full border border-white/5"></div>
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none mb-8">
-                      <div className="text-center"><span className="block text-4xl font-bold text-white tracking-tighter">{pendingTasks}</span><span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Left</span></div>
-                    </div>
                   </div>
                 </div>
               </div>
