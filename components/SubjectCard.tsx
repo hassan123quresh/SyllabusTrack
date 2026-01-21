@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { Subject, PriorityLevel, Topic, LinkItem } from '../types';
-import { Check, Plus, Trash2, Pencil, Calendar, ExternalLink, ChevronDown, ChevronUp, Link as LinkIcon, X, PlusCircle } from 'lucide-react';
+import { Check, Plus, Trash2, Pencil, Calendar as CalendarIcon, ExternalLink, ChevronDown, ChevronUp, Link as LinkIcon, X, PlusCircle } from 'lucide-react';
 import { TaskLinksModal } from './TaskLinksModal';
+import { Calendar } from 'primereact/calendar';
 
 interface SubjectCardProps {
   subject: Subject;
@@ -222,7 +223,28 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                        <select value={editForm.priority} onChange={e => setEditForm({...editForm, priority: e.target.value as PriorityLevel})} className="bg-black/40 text-white text-xs p-2 rounded border border-white/10">
                           <option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option>
                        </select>
-                       <input type="date" value={editForm.deadline} onChange={e => setEditForm({...editForm, deadline: e.target.value})} className="bg-black/40 text-white text-xs p-2 rounded border border-white/10 flex-1" />
+                       <div className="flex-1 min-w-[120px]">
+                            <Calendar 
+                                value={editForm.deadline ? new Date(editForm.deadline) : null} 
+                                onChange={(e) => {
+                                    if (e.value) {
+                                        const d = e.value as Date;
+                                        const year = d.getFullYear();
+                                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                                        const day = String(d.getDate()).padStart(2, '0');
+                                        setEditForm({...editForm, deadline: `${year}-${month}-${day}`});
+                                    } else {
+                                        setEditForm({...editForm, deadline: ''});
+                                    }
+                                }} 
+                                className="w-full"
+                                inputClassName="w-full bg-black/40 text-white text-xs p-2 rounded border border-white/10 focus:ring-1 focus:ring-lime-500 outline-none placeholder:text-slate-500"
+                                placeholder="Deadline"
+                                dateFormat="yy-mm-dd"
+                                showIcon
+                                appendTo={document.body}
+                            />
+                       </div>
                     </div>
 
                     {/* Link Manager */}
@@ -300,7 +322,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                         
                         {status && (
                             <div className={`flex items-center gap-1 text-[10px] font-medium ${status.color}`}>
-                                <Calendar className="w-3 h-3 opacity-70" /> {status.text}
+                                <CalendarIcon className="w-3 h-3 opacity-70" /> {status.text}
                             </div>
                         )}
                         

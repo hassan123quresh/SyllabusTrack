@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -9,6 +10,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    
+    <!-- PrimeReact Theme & Core -->
+    <link rel="stylesheet" href="https://unpkg.com/primereact/resources/themes/lara-dark-teal/theme.css" />
+    <link rel="stylesheet" href="https://unpkg.com/primereact/resources/primereact.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/primeicons/primeicons.css" />
     
     <!-- Preload Critical Assets -->
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -24,6 +30,21 @@
       .glass-panel {
         background: #08100c;
         border: 1px solid rgba(255,255,255,0.08);
+      }
+      /* Override PrimeReact Styles to fit glass aesthetic if needed */
+      .p-calendar .p-inputtext {
+        background: transparent;
+        border: none;
+        color: inherit;
+        padding: 0;
+      }
+      .p-datepicker {
+        background: #08100c;
+        border: 1px solid rgba(255,255,255,0.1);
+      }
+      .p-datepicker-header {
+        background: rgba(255,255,255,0.05);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
       }
     </style>
 
@@ -125,7 +146,9 @@
     "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
     "vite": "https://aistudiocdn.com/vite@^7.2.7",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.2",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/"
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "primereact/": "https://aistudiocdn.com/primereact@^10.8.4/",
+    "primereact": "https://aistudiocdn.com/primereact@^10.8.4"
   }
 }
 </script>

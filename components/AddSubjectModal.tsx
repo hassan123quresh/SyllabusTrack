@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Calendar, AlertCircle, Link as LinkIcon } from 'lucide-react';
+import { X, Plus, Trash2, Calendar as CalendarIcon, AlertCircle, Link as LinkIcon } from 'lucide-react';
 import { Subject, PriorityLevel } from '../types';
+import { Calendar } from 'primereact/calendar';
 
 interface AddSubjectModalProps {
   isOpen: boolean;
@@ -164,12 +165,28 @@ export const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClos
                     <option value="Medium" className="text-slate-900">Medium</option>
                     <option value="Low" className="text-slate-900">Low</option>
                   </select>
-                  <input 
-                     type="date"
-                     value={newTopicDeadline}
-                     onChange={(e) => setNewTopicDeadline(e.target.value)}
-                     className="glass-input flex-1 text-sm px-2 py-2 rounded-lg focus:ring-1 focus:ring-lime-500 outline-none text-slate-300"
-                  />
+                  <div className="flex-1 min-w-[120px]">
+                      <Calendar 
+                          value={newTopicDeadline ? new Date(newTopicDeadline) : null} 
+                          onChange={(e) => {
+                                if(e.value) {
+                                    const d = e.value as Date;
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    setNewTopicDeadline(`${year}-${month}-${day}`);
+                                } else {
+                                    setNewTopicDeadline('');
+                                }
+                          }} 
+                          className="w-full"
+                          inputClassName="w-full glass-input text-sm px-2 py-2 rounded-lg focus:ring-1 focus:ring-lime-500 outline-none text-slate-300"
+                          placeholder="Deadline"
+                          dateFormat="yy-mm-dd"
+                          appendTo={document.body}
+                          showIcon
+                      />
+                  </div>
                </div>
                <button 
                  onClick={handleAddTopic}
@@ -206,7 +223,7 @@ export const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClos
                       }`}>{t.priority}</span>
                       {t.deadline && (
                         <span className="flex items-center gap-1 font-medium text-slate-400">
-                          <Calendar className="w-3 h-3" />
+                          <CalendarIcon className="w-3 h-3" />
                           {t.deadline}
                         </span>
                       )}

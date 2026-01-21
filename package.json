@@ -15,7 +15,8 @@
     "recharts": "^3.5.1",
     "vite": "^7.2.7",
     "@vitejs/plugin-react": "^5.1.2",
-    "firebase": "^12.7.0"
+    "firebase": "^12.7.0",
+    "primereact": "^10.8.4"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

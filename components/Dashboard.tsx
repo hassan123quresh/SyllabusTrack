@@ -1,14 +1,16 @@
+
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { Subject, Topic, PriorityLevel, Exam } from '../types';
 import { SubjectCard } from './SubjectCard';
 import { AddSubjectModal } from './AddSubjectModal';
 import { ConfirmationModal } from './ConfirmationModal';
 import { 
-  Activity, TrendingUp, AlertCircle, Calendar, Trophy, 
+  Activity, TrendingUp, AlertCircle, Calendar as CalendarIcon, Trophy, 
   AlertTriangle, Layers, Trash2, Timer, Plus, CloudUpload, PlusCircle, ShieldAlert, Copy,
   ChevronDown, Clock
 } from 'lucide-react';
 import { dbService } from '../services/db';
+import { Calendar } from 'primereact/calendar';
 
 // Lazy load charts
 const SubjectProgressChart = React.lazy(() => import('./DashboardCharts').then(module => ({ default: module.SubjectProgressChart })));
@@ -403,7 +405,7 @@ export const Dashboard: React.FC = () => {
 
               <div className="glass-panel p-0 rounded-3xl flex flex-col overflow-hidden h-full min-h-[400px] xl:min-h-[750px]">
                 <div className="p-4 sm:p-6 border-b border-white/10 bg-gradient-to-br from-emerald-900/40 to-black/40">
-                  <h3 className="font-bold text-white flex items-center gap-2 text-lg"><Calendar className="w-5 h-5 text-lime-400" /> Exam Headquarters</h3>
+                  <h3 className="font-bold text-white flex items-center gap-2 text-lg"><CalendarIcon className="w-5 h-5 text-lime-400" /> Exam Headquarters</h3>
                   <div className="mt-4 sm:mt-6 flex flex-col items-center justify-center text-center p-4 sm:p-6 bg-white/5 rounded-2xl border border-white/10 relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-4 opacity-10"><Timer className="w-20 h-20 sm:w-24 sm:h-24 text-lime-500" /></div>
                       {nextExam ? (
@@ -464,17 +466,26 @@ export const Dashboard: React.FC = () => {
                         <div className="flex flex-col gap-1.5 flex-1">
                           <label className="text-[10px] font-bold text-slate-500 uppercase px-1">Date</label>
                           <div className="relative">
-                            <input 
-                              type="date" 
-                              value={newExamDate} 
-                              onChange={e => setNewExamDate(e.target.value)} 
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                              required 
+                            <Calendar 
+                                value={newExamDate ? new Date(newExamDate) : null} 
+                                onChange={(e) => {
+                                    if(e.value) {
+                                        const d = e.value as Date;
+                                        const year = d.getFullYear();
+                                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                                        const day = String(d.getDate()).padStart(2, '0');
+                                        setNewExamDate(`${year}-${month}-${day}`);
+                                    } else {
+                                        setNewExamDate('');
+                                    }
+                                }} 
+                                className="w-full"
+                                inputClassName="w-full glass-input px-3 py-2 rounded-lg text-xs font-normal placeholder:text-slate-500"
+                                placeholder="Select date"
+                                dateFormat="yy-mm-dd"
+                                appendTo={document.body}
+                                showIcon
                             />
-                            <div className={`glass-input w-full px-3 py-2 rounded-lg text-xs font-normal flex items-center justify-between ${!newExamDate ? 'text-slate-500' : 'text-white'}`}>
-                              {newExamDate ? new Date(newExamDate).toLocaleDateString() : "Select date"}
-                              <ChevronDown className="w-3 h-3 opacity-50" />
-                            </div>
                           </div>
                         </div>
 
