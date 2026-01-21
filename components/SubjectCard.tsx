@@ -150,7 +150,9 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
          setViewingLinks({ title: topic.name, links: allLinks });
      } else {
          // Single simple link -> direct open
-         window.open(allLinks[0].url, '_blank', 'noopener,noreferrer');
+         const url = allLinks[0].url;
+         const absoluteUrl = (url.startsWith('http://') || url.startsWith('https://')) ? url : `https://${url}`;
+         window.open(absoluteUrl, '_blank', 'noopener,noreferrer');
      }
   };
 

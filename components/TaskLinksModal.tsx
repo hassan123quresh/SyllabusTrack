@@ -10,6 +10,13 @@ interface TaskLinksModalProps {
   links: LinkItem[];
 }
 
+// Helper to ensure URL is absolute
+const ensureAbsoluteUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `https://${url}`;
+};
+
 export const TaskLinksModal: React.FC<TaskLinksModalProps> = ({ isOpen, onClose, title, links }) => {
   if (!isOpen) return null;
 
@@ -39,7 +46,7 @@ export const TaskLinksModal: React.FC<TaskLinksModalProps> = ({ isOpen, onClose,
             links.map((link) => (
               <a 
                 key={link.id}
-                href={link.url}
+                href={ensureAbsoluteUrl(link.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-col p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-lime-500/30 transition-all group active:scale-[0.98]"
