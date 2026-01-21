@@ -1,13 +1,20 @@
 
 export type PriorityLevel = 'High' | 'Medium' | 'Low';
 
+export interface LinkItem {
+  id: string;
+  title: string;
+  url: string;
+}
+
 export interface Topic {
   id: string;
   name: string;
   isCompleted: boolean;
   priority?: PriorityLevel;
   deadline?: string;
-  link?: string;
+  link?: string; // Legacy support
+  links?: LinkItem[]; // New multiple links support
 }
 
 export interface Subject {
