@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Subject, PriorityLevel, Topic, LinkItem } from '../types';
 import { Check, Plus, Trash2, Pencil, Calendar as CalendarIcon, ExternalLink, ChevronDown, ChevronUp, Link as LinkIcon, X, PlusCircle } from 'lucide-react';
 import { TaskLinksModal } from './TaskLinksModal';
@@ -45,6 +45,13 @@ const PriorityBadge: React.FC<{ priority?: PriorityLevel }> = React.memo(({ prio
 export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onDeleteSubject, onDeleteTopic, onEditTopic, isPhone = false }: SubjectCardProps) => {
   const [isExpanded, setIsExpanded] = useState(!isPhone);
   const [isAdding, setIsAdding] = useState(false);
+  
+  // Force expansion on desktop if window resizes or prop changes
+  useEffect(() => {
+    if (!isPhone) {
+      setIsExpanded(true);
+    }
+  }, [isPhone]);
   
   // Modal State
   const [viewingLinks, setViewingLinks] = useState<{title: string, links: LinkItem[]} | null>(null);
@@ -165,7 +172,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
 
   return (
     <>
-    <div className="bg-[#08100c] border border-white/5 rounded-xl overflow-hidden flex flex-col mb-4 md:mb-0 h-auto md:h-full shadow-sm">
+    <div className="bg-[#08100c] border border-white/5 rounded-xl overflow-hidden flex flex-col mb-4 md:mb-0 h-auto md:h-full md:max-h-[600px] shadow-sm">
       {/* Header */}
       <div 
         onClick={() => isPhone && setIsExpanded(!isExpanded)}
@@ -355,7 +362,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
           </ul>
 
           {/* Footer / Add Button */}
-          <div className="p-2 border-t border-white/5 bg-black/20">
+          <div className="p-3 border-t border-white/5 bg-black/40">
              {isAdding ? (
                 <form onSubmit={submitAdd} className="p-1">
                    <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="New Topic..." className="w-full bg-black/40 text-white text-sm p-2 rounded border border-white/10 mb-2" />
@@ -368,8 +375,8 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                    </div>
                 </form>
              ) : (
-               <button onClick={() => setIsAdding(true)} className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-white hover:bg-white/5 rounded transition-colors">
-                  <Plus className="w-3.5 h-3.5" /> Add Item
+               <button onClick={() => setIsAdding(true)} className="w-full py-2.5 flex items-center justify-center gap-2 text-xs font-bold text-slate-400 bg-white/5 hover:bg-white/10 hover:text-white rounded-lg transition-all border border-white/5">
+                  <Plus className="w-3.5 h-3.5" /> Add Task
                </button>
              )}
           </div>
