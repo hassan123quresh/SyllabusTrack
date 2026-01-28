@@ -7,6 +7,12 @@ export interface LinkItem {
   url: string;
 }
 
+export interface ImageItem {
+  id: string;
+  url: string; // Base64 string
+  createdAt: string;
+}
+
 export interface Topic {
   id: string;
   name: string;
@@ -15,6 +21,7 @@ export interface Topic {
   deadline?: string;
   link?: string; // Legacy support
   links?: LinkItem[]; // New multiple links support
+  images?: ImageItem[]; // Image attachments
 }
 
 export interface Subject {

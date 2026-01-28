@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
-import { Subject, PriorityLevel, Topic, LinkItem } from '../types';
-import { Check, Plus, Trash2, Pencil, Calendar as CalendarIcon, ExternalLink, ChevronDown, ChevronUp, Link as LinkIcon, X, PlusCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Subject, PriorityLevel, Topic, LinkItem, ImageItem } from '../types';
+import { Check, Plus, Trash2, Pencil, Calendar as CalendarIcon, ExternalLink, ChevronDown, ChevronUp, Link as LinkIcon, X, PlusCircle, Camera, Image as ImageIcon } from 'lucide-react';
 import { TaskLinksModal } from './TaskLinksModal';
+import { TaskImagesModal } from './TaskImagesModal';
 import { Calendar } from 'primereact/calendar';
 
 interface SubjectCardProps {
@@ -14,6 +15,47 @@ interface SubjectCardProps {
   onEditTopic: (subjectId: string, topic: Topic) => void;
   isPhone?: boolean;
 }
+
+// Helper: Compress Image to Base64 (Max 800px)
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Compress to JPEG at 60% quality
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
 
 // Pure function for date calculation
 const getDaysLeftText = (deadline?: string) => {
@@ -45,6 +87,8 @@ const PriorityBadge: React.FC<{ priority?: PriorityLevel }> = React.memo(({ prio
 export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onDeleteSubject, onDeleteTopic, onEditTopic, isPhone = false }: SubjectCardProps) => {
   const [isExpanded, setIsExpanded] = useState(!isPhone);
   const [isAdding, setIsAdding] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingTopicId, setUploadingTopicId] = useState<string | null>(null);
   
   // Force expansion on desktop if window resizes or prop changes
   useEffect(() => {
@@ -55,6 +99,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
   
   // Modal State
   const [viewingLinks, setViewingLinks] = useState<{title: string, links: LinkItem[]} | null>(null);
+  const [viewingImages, setViewingImages] = useState<{title: string, images: ImageItem[], topicId: string} | null>(null);
   
   // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -71,7 +116,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
   const [newName, setNewName] = useState('');
   const [newPriority, setNewPriority] = useState<PriorityLevel>('Medium');
   const [newDeadline, setNewDeadline] = useState('');
-  const [newLink, setNewLink] = useState(''); // Simple single link add for speed
+  const [newLink, setNewLink] = useState(''); 
 
   // Derived State
   const completedCount = subject.topics.filter(t => t.isCompleted).length;
@@ -109,7 +154,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
           priority: editForm.priority,
           deadline: editForm.deadline || undefined,
           links: editForm.links.length > 0 ? editForm.links : undefined,
-          link: undefined // Clear legacy field on save to migrate
+          link: undefined
         });
       }
       setEditingId(null);
@@ -144,8 +189,6 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
 
   const handleLinkClick = (e: React.MouseEvent, topic: Topic) => {
      e.stopPropagation();
-     
-     // Normalize links
      const allLinks = topic.links ? [...topic.links] : [];
      if (topic.link && !allLinks.some(l => l.url === topic.link)) {
          allLinks.unshift({ id: 'legacy', title: 'Main Link', url: topic.link });
@@ -153,15 +196,60 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
 
      if (allLinks.length === 0) return;
 
-     // If multiple links OR single link with custom title -> Open Modal
      if (allLinks.length > 1 || (allLinks.length === 1 && allLinks[0].title && allLinks[0].title !== 'Main Link')) {
          setViewingLinks({ title: topic.name, links: allLinks });
      } else {
-         // Single simple link -> direct open
          const url = allLinks[0].url;
          const absoluteUrl = (url.startsWith('http://') || url.startsWith('https://')) ? url : `https://${url}`;
          window.open(absoluteUrl, '_blank', 'noopener,noreferrer');
      }
+  };
+
+  // Image Handling
+  const handleCameraClick = (e: React.MouseEvent, topicId: string) => {
+    e.stopPropagation();
+    setUploadingTopicId(topicId);
+    if (fileInputRef.current) {
+        fileInputRef.current.value = ''; // Reset input
+        fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && uploadingTopicId) {
+        const file = e.target.files[0];
+        try {
+            const base64 = await compressImage(file);
+            const topic = subject.topics.find(t => t.id === uploadingTopicId);
+            if (topic) {
+                const newImage: ImageItem = {
+                    id: `img-${Date.now()}`,
+                    url: base64,
+                    createdAt: new Date().toISOString()
+                };
+                onEditTopic(subject.id, {
+                    ...topic,
+                    images: [...(topic.images || []), newImage]
+                });
+            }
+        } catch (err) {
+            console.error("Failed to process image", err);
+            alert("Failed to upload image.");
+        }
+        setUploadingTopicId(null);
+    }
+  };
+
+  const handleDeleteImage = (imageId: string) => {
+      if (viewingImages) {
+          const topic = subject.topics.find(t => t.id === viewingImages.topicId);
+          if (topic) {
+              const updatedImages = (topic.images || []).filter(img => img.id !== imageId);
+              onEditTopic(subject.id, { ...topic, images: updatedImages });
+              // Update local modal state
+              setViewingImages(prev => prev ? ({ ...prev, images: updatedImages }) : null);
+          }
+      }
   };
 
   const getLinkCount = (topic: Topic) => {
@@ -172,6 +260,15 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
 
   return (
     <>
+    {/* Hidden File Input for Camera/Gallery */}
+    <input 
+        type="file" 
+        ref={fileInputRef} 
+        accept="image/*" 
+        className="hidden" 
+        onChange={handleFileChange}
+    />
+
     <div className="bg-[#08100c] border border-white/5 rounded-xl overflow-hidden flex flex-col mb-4 md:mb-0 h-auto md:h-full md:max-h-[600px] shadow-sm">
       {/* Header */}
       <div 
@@ -296,6 +393,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
 
               const status = getDaysLeftText(topic.deadline);
               const linkCount = getLinkCount(topic);
+              const imageCount = topic.images?.length || 0;
 
               return (
                 <li key={topic.id} className="group border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
@@ -333,6 +431,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                             </div>
                         )}
                         
+                        {/* Link Button */}
                         {linkCount > 0 && (
                           <button 
                             onClick={(e) => handleLinkClick(e, topic)} 
@@ -349,6 +448,25 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                              )}
                           </button>
                         )}
+
+                        {/* Images Badge */}
+                        {imageCount > 0 && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setViewingImages({ title: topic.name, images: topic.images || [], topicId: topic.id }); }}
+                            className="flex items-center gap-1 text-[10px] font-medium transition-colors border px-1.5 py-0.5 rounded text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/10 hover:bg-fuchsia-500/20"
+                          >
+                             <ImageIcon className="w-3 h-3" /> {imageCount} Imgs
+                          </button>
+                        )}
+                        
+                        {/* Upload Button */}
+                        <button 
+                            onClick={(e) => handleCameraClick(e, topic.id)}
+                            className="p-0.5 text-slate-500 hover:text-lime-400 transition-colors"
+                            title="Add Photo"
+                        >
+                            <Camera className="w-3.5 h-3.5" />
+                        </button>
                     </div>
 
                   </div>
@@ -398,6 +516,14 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
         onClose={() => setViewingLinks(null)}
         title={viewingLinks?.title || 'Links'}
         links={viewingLinks?.links || []}
+    />
+    
+    <TaskImagesModal 
+        isOpen={!!viewingImages}
+        onClose={() => setViewingImages(null)}
+        title={viewingImages?.title || 'Attachments'}
+        images={viewingImages?.images || []}
+        onDeleteImage={handleDeleteImage}
     />
     </>
   );
