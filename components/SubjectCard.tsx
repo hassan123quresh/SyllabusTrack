@@ -5,6 +5,7 @@ import { Check, Plus, Trash2, Pencil, Calendar as CalendarIcon, ExternalLink, Ch
 import { TaskLinksModal } from './TaskLinksModal';
 import { TaskImagesModal } from './TaskImagesModal';
 import { TaskNoteModal } from './TaskNoteModal';
+import { ConfirmationModal } from './ConfirmationModal';
 import { Calendar } from 'primereact/calendar';
 
 interface SubjectCardProps {
@@ -102,6 +103,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
   const [viewingLinks, setViewingLinks] = useState<{title: string, links: LinkItem[]} | null>(null);
   const [viewingImages, setViewingImages] = useState<{title: string, images: ImageItem[], topicId: string} | null>(null);
   const [editingNote, setEditingNote] = useState<{topicId: string, title: string, content: string} | null>(null);
+  const [topicToDelete, setTopicToDelete] = useState<string | null>(null);
 
   // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -431,7 +433,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                         {/* Edit/Delete Actions */}
                         <div className={`flex items-center gap-1 ${isPhone ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
                           <button onClick={(e) => { e.stopPropagation(); startEdit(topic); }} className="p-1.5 text-slate-500 hover:text-white"><Pencil className="w-3 h-3" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); onDeleteTopic(subject.id, topic.id); }} className="p-1.5 text-slate-500 hover:text-rose-400"><Trash2 className="w-3 h-3" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setTopicToDelete(topic.id); }} className="p-1.5 text-slate-500 hover:text-rose-400"><Trash2 className="w-3 h-3" /></button>
                         </div>
                     </div>
 
@@ -463,18 +465,17 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                           </button>
                         )}
 
-                        {/* Note Button (Always Visible) */}
+                        {/* Note Button (Always Visible) - Icon Only */}
                         <button
                           onClick={(e) => { e.stopPropagation(); setEditingNote({ topicId: topic.id, title: topic.name, content: topic.note || '' }); }}
-                          className={`flex items-center gap-1 text-[10px] font-medium transition-colors border px-1.5 py-0.5 rounded ${
+                          className={`flex items-center justify-center gap-1 transition-colors border px-1.5 py-0.5 rounded ${
                             hasNote 
                               ? 'text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20' 
                               : 'text-slate-500 border-transparent bg-white/5 hover:text-white hover:bg-white/10'
                           }`}
                           title={hasNote ? "Edit Note" : "Add Note"}
                         >
-                            <FileText className="w-3 h-3" />
-                            <span>{hasNote ? 'Note' : 'Add Note'}</span>
+                            <FileText className="w-3.5 h-3.5" />
                         </button>
 
                         {/* Images Badge */}
@@ -560,6 +561,19 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
         title={editingNote?.title || 'Note'}
         initialContent={editingNote?.content || ''}
         onSave={handleNoteSave}
+    />
+
+    <ConfirmationModal
+        isOpen={!!topicToDelete}
+        title="Delete Task"
+        message="Are you sure you want to delete this task? This cannot be undone."
+        onConfirm={() => {
+            if (topicToDelete) {
+                onDeleteTopic(subject.id, topicToDelete);
+                setTopicToDelete(null);
+            }
+        }}
+        onCancel={() => setTopicToDelete(null)}
     />
     </>
   );

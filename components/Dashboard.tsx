@@ -23,6 +23,7 @@ export const Dashboard: React.FC = () => {
   
   const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState<string | null>(null);
+  const [examToDelete, setExamToDelete] = useState<string | null>(null); // New state for exam deletion
   const [isAddingExam, setIsAddingExam] = useState(false);
   
   // Add Exam Form State
@@ -171,14 +172,17 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const handleDeleteExam = useCallback(async (id: string) => {
-    try {
-      await dbService.deleteExam(id);
-    } catch (error) {
-       console.error("Failed to delete exam:", error);
-       alert("Failed to delete exam.");
+  const confirmDeleteExam = useCallback(async () => {
+    if (examToDelete) {
+        try {
+          await dbService.deleteExam(examToDelete);
+        } catch (error) {
+           console.error("Failed to delete exam:", error);
+           alert("Failed to delete exam.");
+        }
+        setExamToDelete(null);
     }
-  }, []);
+  }, [examToDelete]);
 
   const copyRulesToClipboard = () => {
     const rules = `rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}`;
@@ -411,7 +415,7 @@ export const Dashboard: React.FC = () => {
                                {formattedTime && <span className="text-slate-200 border-l border-white/10 pl-2 font-bold">{formattedTime}</span>}
                             </div>
                           </div>
-                          <button onClick={() => handleDeleteExam(exam.id)} className="p-2 text-slate-500 hover:text-rose-400 hover:bg-white/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => setExamToDelete(exam.id)} className="p-2 text-slate-500 hover:text-rose-400 hover:bg-white/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     );
                   })}
@@ -519,6 +523,7 @@ export const Dashboard: React.FC = () => {
         )}
       <AddSubjectModal isOpen={isAddSubjectModalOpen} onClose={() => setIsAddSubjectModalOpen(false)} onAdd={handleAddSubject} />
       <ConfirmationModal isOpen={!!subjectToDelete} title="Delete Subject" message="All data will be lost." onConfirm={confirmDeleteSubject} onCancel={() => setSubjectToDelete(null)} />
+      <ConfirmationModal isOpen={!!examToDelete} title="Delete Exam" message="Are you sure you want to delete this exam?" onConfirm={confirmDeleteExam} onCancel={() => setExamToDelete(null)} />
     </div>
   );
 };
