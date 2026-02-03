@@ -1,21 +1,19 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { LoginScreen } from './components/LoginScreen';
-import { GraduationCap, LayoutDashboard, BookOpen, Book } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, Book } from 'lucide-react';
 
 // Lazy load components to reduce initial bundle size (Code Splitting)
 const dashboardImport = () => import('./components/Dashboard').then(module => ({ default: module.Dashboard }));
-const resourcesImport = () => import('./components/ResourceManagerPage').then(module => ({ default: module.ResourceManagerPage }));
 const quranImport = () => import('./components/QuranPage').then(module => ({ default: module.QuranPage }));
 
 const Dashboard = React.lazy(dashboardImport);
-const ResourceManagerPage = React.lazy(resourcesImport);
 const QuranPage = React.lazy(quranImport);
 
 const App: React.FC = () => {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'resources' | 'quran'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'quran'>('dashboard');
 
   // Check login status on mount
   useEffect(() => {
@@ -43,7 +41,6 @@ const App: React.FC = () => {
   
   // Prefetch logic
   const prefetchDashboard = () => dashboardImport();
-  const prefetchResources = () => resourcesImport();
   const prefetchQuran = () => quranImport();
 
   if (!isAuthenticated) {
@@ -94,18 +91,6 @@ const App: React.FC = () => {
               <span className="hidden sm:inline">Dashboard</span>
             </button>
             <button
-              onClick={() => setCurrentView('resources')}
-              onMouseEnter={prefetchResources}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
-                currentView === 'resources' 
-                  ? 'bg-lime-500 text-black shadow-[0_0_15px_rgba(163,230,53,0.3)]' 
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">Resources</span>
-            </button>
-            <button
               onClick={() => setCurrentView('quran')}
               onMouseEnter={prefetchQuran}
               className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
@@ -125,7 +110,6 @@ const App: React.FC = () => {
       <main className="w-full flex-1 relative">
          <Suspense fallback={null}>
            {currentView === 'dashboard' && <Dashboard />}
-           {currentView === 'resources' && <ResourceManagerPage />}
            {currentView === 'quran' && <QuranPage />}
          </Suspense>
       </main>

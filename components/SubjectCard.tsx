@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Subject, PriorityLevel, Topic, LinkItem, ImageItem } from '../types';
-import { Check, Plus, Trash2, Pencil, Calendar as CalendarIcon, ExternalLink, ChevronDown, ChevronUp, Link as LinkIcon, X, PlusCircle, Camera, Image as ImageIcon } from 'lucide-react';
+import { Check, Plus, Trash2, Pencil, Calendar as CalendarIcon, ExternalLink, ChevronDown, ChevronUp, Link as LinkIcon, X, PlusCircle, Camera, Image as ImageIcon, FileText } from 'lucide-react';
 import { TaskLinksModal } from './TaskLinksModal';
 import { TaskImagesModal } from './TaskImagesModal';
+import { TaskNoteModal } from './TaskNoteModal';
 import { Calendar } from 'primereact/calendar';
 
 interface SubjectCardProps {
@@ -100,7 +101,8 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
   // Modal State
   const [viewingLinks, setViewingLinks] = useState<{title: string, links: LinkItem[]} | null>(null);
   const [viewingImages, setViewingImages] = useState<{title: string, images: ImageItem[], topicId: string} | null>(null);
-  
+  const [editingNote, setEditingNote] = useState<{topicId: string, title: string, content: string} | null>(null);
+
   // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -251,6 +253,17 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
           }
       }
   };
+  
+  // Note Handling
+  const handleNoteSave = (content: string) => {
+     if (editingNote) {
+         const topic = subject.topics.find(t => t.id === editingNote.topicId);
+         if (topic) {
+             onEditTopic(subject.id, { ...topic, note: content });
+         }
+         setEditingNote(null);
+     }
+  };
 
   const getLinkCount = (topic: Topic) => {
      let count = topic.links?.length || 0;
@@ -394,6 +407,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
               const status = getDaysLeftText(topic.deadline);
               const linkCount = getLinkCount(topic);
               const imageCount = topic.images?.length || 0;
+              const hasNote = topic.note && topic.note.trim().length > 0;
 
               return (
                 <li key={topic.id} className="group border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
@@ -448,6 +462,15 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                              )}
                           </button>
                         )}
+
+                        {/* Note Button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingNote({ topicId: topic.id, title: topic.name, content: topic.note || '' }); }}
+                          className={`flex items-center gap-1 text-[10px] font-medium transition-colors border px-1.5 py-0.5 rounded ${hasNote ? 'text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20' : 'text-slate-500 border-transparent hover:text-white hover:bg-white/5'}`}
+                          title="Notes"
+                        >
+                            <FileText className="w-3 h-3" /> {hasNote && 'Note'}
+                        </button>
 
                         {/* Images Badge */}
                         {imageCount > 0 && (
@@ -524,6 +547,14 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
         title={viewingImages?.title || 'Attachments'}
         images={viewingImages?.images || []}
         onDeleteImage={handleDeleteImage}
+    />
+
+    <TaskNoteModal
+        isOpen={!!editingNote}
+        onClose={() => setEditingNote(null)}
+        title={editingNote?.title || 'Note'}
+        initialContent={editingNote?.content || ''}
+        onSave={handleNoteSave}
     />
     </>
   );

@@ -1,3 +1,4 @@
+
 import { db } from '../firebase';
 import { 
   collection, 
@@ -6,11 +7,11 @@ import {
   deleteDoc, 
   updateDoc, 
   onSnapshot, 
-  getDoc,
   writeBatch,
-  getDocs
+  getDocs,
+  getDoc
 } from 'firebase/firestore';
-import { Subject, Exam, Resource, QuranNote, Topic } from '../types';
+import { Subject, Exam, QuranNote, Topic, Resource } from '../types';
 import { INITIAL_SYLLABUS, INITIAL_EXAMS } from '../constants';
 
 // Helper to recursively clean data for Firestore
@@ -51,7 +52,6 @@ export const dbService = {
          const data = doc.data() as Subject;
          
          // CRITICAL FIX: Ensure the internal ID matches the Document ID.
-         // This fixes issues where legacy data couldn't be deleted/updated.
          data.id = doc.id; 
 
          // Defensive: Ensure topics is array
@@ -59,7 +59,6 @@ export const dbService = {
             data.topics = [];
          } else {
             // Auto-Repair: Fix topics that might be missing IDs from older versions of the app
-            // Instead of filtering them out, we assign them a temporary ID so they can be rendered and edited.
             data.topics = data.topics.map((t: any) => {
                if (!t || typeof t !== 'object') return null;
                
@@ -163,7 +162,6 @@ export const dbService = {
     return onSnapshot(collection(db, 'exams'), (snapshot) => {
         const exams = snapshot.docs.map(doc => {
           const data = doc.data() as Exam;
-          // CRITICAL FIX: Ensure ID matches Document ID
           data.id = doc.id;
           return data;
         });
@@ -187,22 +185,6 @@ export const dbService = {
     }
   },
 
-  // --- Resources ---
-  getResource: async (id: string): Promise<Resource | null> => {
-    try {
-      const docRef = doc(db, 'resources', id);
-      const docSnap = await getDoc(docRef);
-      return docSnap.exists() ? (docSnap.data() as Resource) : null;
-    } catch (error) {
-      console.error("Error fetching resource:", error);
-      return null;
-    }
-  },
-
-  saveResource: async (resource: Resource) => {
-    await setDoc(doc(db, 'resources', resource.id), cleanData(resource));
-  },
-
   // --- Quran Notes ---
   subscribeToQuranNotes: (cb: (data: Record<string, QuranNote>) => void, onError?: (error: any) => void) => {
      return onSnapshot(collection(db, 'quran_notes'), (snapshot) => {
@@ -219,5 +201,29 @@ export const dbService = {
 
   saveQuranNote: async (note: QuranNote) => {
     await setDoc(doc(db, 'quran_notes', note.id), cleanData(note));
+  },
+
+  // --- Resources ---
+  getResource: async (subjectId: string) => {
+    try {
+      const docRef = doc(db, 'resources', subjectId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return docSnap.data() as Resource;
+      }
+      return null;
+    } catch (e) {
+      console.error("Error fetching resource", e);
+      throw e;
+    }
+  },
+
+  saveResource: async (resource: Resource) => {
+    try {
+      await setDoc(doc(db, 'resources', resource.id), cleanData(resource));
+    } catch (e) {
+      console.error("Error saving resource", e);
+      throw e;
+    }
   }
 };

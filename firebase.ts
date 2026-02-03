@@ -1,5 +1,6 @@
+
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 
 // --- CONNECTION INSTRUCTIONS ---
 // 1. Go to https://console.firebase.google.com/
@@ -19,5 +20,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore Database
-export const db = getFirestore(app);
+// Initialize Firestore Database with long polling to ensure connection in all environments
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});

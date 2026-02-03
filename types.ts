@@ -22,6 +22,7 @@ export interface Topic {
   link?: string; // Legacy support
   links?: LinkItem[]; // New multiple links support
   images?: ImageItem[]; // Image attachments
+  note?: string; // Markdown note content
 }
 
 export interface Subject {
@@ -44,12 +45,6 @@ export interface ChartDataPoint {
   fill: string;
 }
 
-export interface Resource {
-  id: string; // This will match the subjectId
-  content: string; // HTML string
-  updatedAt: string;
-}
-
 export interface Surah {
   number: number;
   name: string;
@@ -59,6 +54,12 @@ export interface Surah {
 
 export interface QuranNote {
   id: string; // Will match the Surah number (e.g., "1", "114")
+  content: string;
+  updatedAt: string;
+}
+
+export interface Resource {
+  id: string;
   content: string;
   updatedAt: string;
 }
