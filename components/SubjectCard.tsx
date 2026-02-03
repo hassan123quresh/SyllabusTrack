@@ -18,7 +18,7 @@ interface SubjectCardProps {
   isPhone?: boolean;
 }
 
-// Helper: Compress Image to Base64 (Max 800px)
+// Helper: Process Image (High Quality)
 const compressImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -28,8 +28,9 @@ const compressImage = (file: File): Promise<string> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
+        // Increased from 800 to 2048 to support HD/2K text readability
+        const MAX_WIDTH = 2048;
+        const MAX_HEIGHT = 2048;
         let width = img.width;
         let height = img.height;
 
@@ -48,10 +49,15 @@ const compressImage = (file: File): Promise<string> => {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
+        // Use better quality smoothing for text documents
+        if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+        }
         
-        // Compress to JPEG at 60% quality
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
+        // Increased quality from 0.6 (60%) to 0.9 (90%)
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
       };
       img.onerror = (err) => reject(err);
     };

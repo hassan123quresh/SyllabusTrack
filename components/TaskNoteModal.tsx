@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, FileText, Eye, PenLine, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Save, FileText, Eye, PenLine, Maximize2, Minimize2, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -18,6 +18,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({ isOpen, onClose, t
   const [content, setContent] = useState(initialContent);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -25,6 +26,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({ isOpen, onClose, t
       // Auto-switch to preview if content exists, otherwise edit
       setViewMode(initialContent ? 'preview' : 'edit');
       setIsFullScreen(false);
+      setCopied(false);
     }
   }, [isOpen, initialContent]);
 
@@ -37,6 +39,12 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({ isOpen, onClose, t
 
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -82,7 +90,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({ isOpen, onClose, t
         
         {/* Toolbar */}
         <div className="px-4 py-2 border-b border-white/10 bg-black/20 flex items-center justify-between flex-shrink-0">
-             <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
+             <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 gap-1">
                  <button 
                    onClick={() => setViewMode('edit')}
                    className={`px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all ${viewMode === 'edit' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
@@ -94,6 +102,15 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({ isOpen, onClose, t
                    className={`px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all ${viewMode === 'preview' ? 'bg-lime-500/20 text-lime-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
                  >
                    <Eye className="w-3.5 h-3.5" /> Preview
+                 </button>
+                 <div className="w-[1px] h-4 bg-white/10 mx-1 self-center"></div>
+                 <button
+                   onClick={handleCopy}
+                   className={`px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all ${copied ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-500 hover:text-slate-300'}`}
+                   title="Copy Note Content"
+                 >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? 'Copied' : 'Copy'}
                  </button>
              </div>
              
