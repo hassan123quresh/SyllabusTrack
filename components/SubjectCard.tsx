@@ -7,7 +7,7 @@ import { TaskImagesModal } from './TaskImagesModal';
 import { TaskNoteModal } from './TaskNoteModal';
 import { ConfirmationModal } from './ConfirmationModal';
 import { Calendar } from 'primereact/calendar';
-import { uploadToCloudinary } from '../services/cloudinary';
+import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '../services/cloudinary';
 
 interface SubjectCardProps {
   subject: Subject;
@@ -259,10 +259,26 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
     }
   };
 
-  const handleDeleteImage = (imageId: string) => {
+  const handleDeleteImage = async (imageId: string) => {
       if (viewingImages) {
           const topic = subject.topics.find(t => t.id === viewingImages.topicId);
           if (topic) {
+              // 1. Try deleting from Cloudinary if it's a Cloudinary image
+              const imageToDelete = topic.images?.find(img => img.id === imageId);
+              if (imageToDelete && imageToDelete.url.includes('cloudinary.com')) {
+                  const publicId = getPublicIdFromUrl(imageToDelete.url);
+                  if (publicId) {
+                      try {
+                          await deleteFromCloudinary(publicId);
+                          console.log('Image deleted from Cloudinary');
+                      } catch (err) {
+                          console.error('Failed to delete from Cloudinary', err);
+                          // Proceed to delete from app even if remote delete fails
+                      }
+                  }
+              }
+
+              // 2. Delete from Database / State
               const updatedImages = (topic.images || []).filter(img => img.id !== imageId);
               onEditTopic(subject.id, { ...topic, images: updatedImages });
               // Update local modal state

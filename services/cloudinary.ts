@@ -36,3 +36,49 @@ export const uploadToCloudinary = async (base64Data: string): Promise<string> =>
   const data = await response.json();
   return data.secure_url; // Returns https://res.cloudinary.com/...
 };
+
+export const getPublicIdFromUrl = (url: string): string | null => {
+  try {
+    // Matches content after 'upload/' and optional version 'v123/' until the first dot
+    const regex = /\/upload\/(?:v\d+\/)?([^\.]+)/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  } catch (error) {
+    console.error("Error extracting publicId from URL:", error);
+    return null;
+  }
+};
+
+export const deleteFromCloudinary = async (publicId: string): Promise<void> => {
+  // 1. Prepare Timestamp
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  // 2. Generate Signature for Destroy
+  // Signature for destroy is SHA-1 of "public_id=xxx&timestamp=xxx<api_secret>"
+  // Note: Parameters must be sorted alphabetically
+  const strToSign = `public_id=${publicId}&timestamp=${timestamp}${API_SECRET}`;
+  
+  const msgBuffer = new TextEncoder().encode(strToSign);
+  const hashBuffer = await crypto.subtle.digest('SHA-1', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // 3. Prepare Form Data
+  const formData = new FormData();
+  formData.append('public_id', publicId);
+  formData.append('api_key', API_KEY);
+  formData.append('timestamp', timestamp.toString());
+  formData.append('signature', signature);
+
+  // 4. Call Destroy API
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/destroy`, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error("Cloudinary delete error response:", errorData);
+    throw new Error(errorData.error?.message || 'Cloudinary delete failed');
+  }
+};
