@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Image as ImageIcon, Trash2, Download, Maximize2 } from 'lucide-react';
 import { ImageItem } from '../types';
+import { dbService } from '../services/db';
 
 interface TaskImagesModalProps {
   isOpen: boolean;
@@ -13,6 +14,30 @@ interface TaskImagesModalProps {
 
 export const TaskImagesModal: React.FC<TaskImagesModalProps> = ({ isOpen, onClose, title, images, onDeleteImage }) => {
   const [fullscreenImage, setFullscreenImage] = useState<ImageItem | null>(null);
+  const [resolvedImages, setResolvedImages] = useState<ImageItem[]>([]);
+  const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (isOpen) {
+      const loadImages = async () => {
+        const loaded = await Promise.all(images.map(async (img) => {
+          // Check if it's a reference
+          if (img.url && img.url.startsWith('ref:')) {
+            const imageId = img.url.split(':')[1];
+            setLoadingMap(prev => ({ ...prev, [img.id]: true }));
+            const realContent = await dbService.getTopicImage(imageId);
+            setLoadingMap(prev => ({ ...prev, [img.id]: false }));
+            if (realContent) {
+              return { ...img, url: realContent };
+            }
+          }
+          return img;
+        }));
+        setResolvedImages(loaded);
+      };
+      loadImages();
+    }
+  }, [isOpen, images]);
 
   if (!isOpen) return null;
 
@@ -40,17 +65,23 @@ export const TaskImagesModal: React.FC<TaskImagesModalProps> = ({ isOpen, onClos
             {images.length === 0 ? (
               <div className="col-span-2 text-slate-500 text-center py-8 text-xs italic">No images attached</div>
             ) : (
-              images.map((img) => (
+              resolvedImages.map((img) => (
                 <div 
                   key={img.id} 
                   className="relative group rounded-xl overflow-hidden border border-white/10 bg-black/40 aspect-square cursor-pointer hover:border-lime-500/50 transition-colors"
-                  onClick={() => setFullscreenImage(img)}
+                  onClick={() => !loadingMap[img.id] && setFullscreenImage(img)}
                 >
-                   <img 
-                     src={img.url} 
-                     alt="Task attachment" 
-                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                   />
+                   {loadingMap[img.id] ? (
+                     <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
+                     </div>
+                   ) : (
+                     <img 
+                       src={img.url} 
+                       alt="Task attachment" 
+                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                     />
+                   )}
                    
                    {/* Overlay Actions */}
                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">

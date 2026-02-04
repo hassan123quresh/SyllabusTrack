@@ -1,6 +1,6 @@
-
 import { initializeApp } from "firebase/app";
 import { initializeFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // --- CONNECTION INSTRUCTIONS ---
 // 1. Go to https://console.firebase.google.com/
@@ -24,3 +24,5 @@ const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 });
+
+export const storage = getStorage(app);

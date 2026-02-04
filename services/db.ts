@@ -101,7 +101,34 @@ export const dbService = {
   updateSubjectTopics: async (subjectId: string, topics: Topic[]) => {
     try {
       const subjectRef = doc(db, 'subjects', subjectId);
-      const cleanedTopics = cleanData(topics);
+      
+      // CRITICAL: Offload large images to separate collection
+      const processedTopics = await Promise.all(topics.map(async (topic) => {
+        if (!topic.images) return topic;
+
+        const processedImages = await Promise.all(topic.images.map(async (img) => {
+           // If it's a new Base64 string (starts with data:image) and is large, move it
+           if (img.url && img.url.startsWith('data:image')) {
+               try {
+                   // Save to separate collection 'topic_images'
+                   await setDoc(doc(db, 'topic_images', img.id), {
+                       content: img.url,
+                       createdAt: img.createdAt
+                   });
+                   // Return a reference for the main doc to keep it small
+                   return { ...img, url: `ref:${img.id}` };
+               } catch (err) {
+                   console.error("Failed to offload image, trying inline", err);
+                   return img; // Fallback
+               }
+           }
+           return img;
+        }));
+
+        return { ...topic, images: processedImages };
+      }));
+
+      const cleanedTopics = cleanData(processedTopics);
       // Double check specifically for topics array
       if (!Array.isArray(cleanedTopics)) {
         throw new Error("Topics must be an array");
@@ -110,6 +137,17 @@ export const dbService = {
     } catch (e) {
       console.error("Error updating topics", e);
       throw e;
+    }
+  },
+
+  getTopicImage: async (imageId: string) => {
+    try {
+      const docRef = doc(db, 'topic_images', imageId);
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? docSnap.data().content : null;
+    } catch (e) {
+      console.error("Error fetching topic image", e);
+      return null;
     }
   },
 
@@ -138,7 +176,7 @@ export const dbService = {
 
   clearAllData: async () => {
     try {
-      const collections = ['subjects', 'exams', 'resources'];
+      const collections = ['subjects', 'exams', 'resources', 'topic_images'];
       
       for (const col of collections) {
          const snapshot = await getDocs(collection(db, col));

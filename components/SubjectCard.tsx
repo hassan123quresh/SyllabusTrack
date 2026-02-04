@@ -7,6 +7,7 @@ import { TaskImagesModal } from './TaskImagesModal';
 import { TaskNoteModal } from './TaskNoteModal';
 import { ConfirmationModal } from './ConfirmationModal';
 import { Calendar } from 'primereact/calendar';
+import { uploadToCloudinary } from '../services/cloudinary';
 
 interface SubjectCardProps {
   subject: Subject;
@@ -18,7 +19,7 @@ interface SubjectCardProps {
   isPhone?: boolean;
 }
 
-// Helper: Process Image (High Quality)
+// Helper: Process Image (Optimized HD for Client Preview)
 const compressImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -28,9 +29,9 @@ const compressImage = (file: File): Promise<string> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        // Increased from 800 to 2048 to support HD/2K text readability
-        const MAX_WIDTH = 2048;
-        const MAX_HEIGHT = 2048;
+        // We resize to HD to optimize upload speed to Cloudinary
+        const MAX_WIDTH = 1280;
+        const MAX_HEIGHT = 1280;
         let width = img.width;
         let height = img.height;
 
@@ -49,15 +50,13 @@ const compressImage = (file: File): Promise<string> => {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        // Use better quality smoothing for text documents
         if (ctx) {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0, width, height);
         }
         
-        // Increased quality from 0.6 (60%) to 0.9 (90%)
-        resolve(canvas.toDataURL('image/jpeg', 0.9));
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
       };
       img.onerror = (err) => reject(err);
     };
@@ -97,6 +96,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
   const [isAdding, setIsAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingTopicId, setUploadingTopicId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Force expansion on desktop if window resizes or prop changes
   useEffect(() => {
@@ -215,7 +215,7 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
      }
   };
 
-  // Image Handling
+  // Image Handling with Cloudinary
   const handleCameraClick = (e: React.MouseEvent, topicId: string) => {
     e.stopPropagation();
     setUploadingTopicId(topicId);
@@ -228,13 +228,20 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0] && uploadingTopicId) {
         const file = e.target.files[0];
+        setIsUploading(true);
         try {
+            // 1. Compress Client Side (Bandwidth optimization & faster upload)
             const base64 = await compressImage(file);
+            
+            // 2. Upload to Cloudinary
+            const secureUrl = await uploadToCloudinary(base64);
+            
+            // 3. Save URL to Database
             const topic = subject.topics.find(t => t.id === uploadingTopicId);
             if (topic) {
                 const newImage: ImageItem = {
                     id: `img-${Date.now()}`,
-                    url: base64,
+                    url: secureUrl, // Cloudinary URL
                     createdAt: new Date().toISOString()
                 };
                 onEditTopic(subject.id, {
@@ -244,9 +251,11 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
             }
         } catch (err) {
             console.error("Failed to process image", err);
-            alert("Failed to upload image.");
+            alert("Failed to upload image. Please try again.");
+        } finally {
+            setIsUploading(false);
+            setUploadingTopicId(null);
         }
-        setUploadingTopicId(null);
     }
   };
 
@@ -497,10 +506,15 @@ export const SubjectCard = React.memo(({ subject, onToggleTopic, onAddTopic, onD
                         {/* Upload Button */}
                         <button 
                             onClick={(e) => handleCameraClick(e, topic.id)}
+                            disabled={isUploading}
                             className="p-0.5 text-slate-500 hover:text-lime-400 transition-colors"
                             title="Add Photo"
                         >
-                            <Camera className="w-3.5 h-3.5" />
+                            {isUploading && uploadingTopicId === topic.id ? (
+                                <div className="w-3.5 h-3.5 border-2 border-lime-500 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                                <Camera className="w-3.5 h-3.5" />
+                            )}
                         </button>
                     </div>
 

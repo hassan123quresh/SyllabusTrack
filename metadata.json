@@ -1,5 +1,7 @@
 {
   "name": "Syllabus Tracker web app",
   "description": "A modern syllabus tracking dashboard with visual analytics.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
