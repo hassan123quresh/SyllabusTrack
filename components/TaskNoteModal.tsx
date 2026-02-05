@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { X, Save, FileText, Eye, PenLine, Maximize2, Minimize2, Copy, Check } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Save, FileText, Eye, PenLine, Maximize2, Minimize2, Copy, Check, List } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -13,6 +13,26 @@ interface TaskNoteModalProps {
   initialContent: string;
   onSave: (content: string) => void;
 }
+
+// Utility to generate IDs from text
+const slugify = (text: string) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-');
+};
+
+// Utility to extract text from React children
+const flattenText = (children: React.ReactNode): string => {
+  if (typeof children === 'string') return children;
+  if (typeof children === 'number') return String(children);
+  if (Array.isArray(children)) return children.map(flattenText).join('');
+  if (React.isValidElement(children)) return flattenText(children.props.children);
+  return '';
+};
 
 export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({ isOpen, onClose, title, initialContent, onSave }) => {
   const [content, setContent] = useState(initialContent);
@@ -29,6 +49,24 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({ isOpen, onClose, t
       setCopied(false);
     }
   }, [isOpen, initialContent]);
+
+  // Extract headings for TOC
+  const headings = useMemo(() => {
+    if (!content) return [];
+    const lines = content.split('\n');
+    const results = [];
+    for (const line of lines) {
+      const match = line.match(/^(#{1,3})\s+(.*)/);
+      if (match) {
+        const level = match[1].length;
+        // Basic cleanup of markdown characters for display
+        const text = match[2].replace(/[*_~`\[\]]/g, '').replace(/\(.*\)/g, '').trim(); 
+        const id = slugify(text);
+        results.push({ id, text, level });
+      }
+    }
+    return results;
+  }, [content]);
 
   if (!isOpen) return null;
 
@@ -114,7 +152,12 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({ isOpen, onClose, t
                  </button>
              </div>
              
-             <div className="text-[10px] text-slate-500 font-mono hidden sm:block flex items-center gap-2">
+             <div className="text-[10px] text-slate-500 font-mono hidden sm:flex items-center gap-2">
+                 {isFullScreen && viewMode === 'preview' && headings.length > 0 && (
+                     <span className="flex items-center gap-1 text-lime-400 mr-2 font-bold animate-pulse">
+                         <List className="w-3 h-3" /> TOC Active
+                     </span>
+                 )}
                  <span>Markdown</span>
                  <span className="w-1 h-1 rounded-full bg-slate-600"></span>
                  <span>Tables</span>
@@ -123,52 +166,95 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({ isOpen, onClose, t
              </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-hidden relative bg-black/20">
-            {viewMode === 'edit' ? (
-                <textarea 
-                    value={content} 
-                    onChange={(e) => setContent(e.target.value)}
-                    className="w-full h-full p-4 sm:p-6 bg-transparent text-slate-200 font-mono text-sm leading-relaxed resize-none focus:outline-none custom-scrollbar placeholder:text-slate-600"
-                    placeholder="Type your notes here... &#10;&#10;Supports:&#10;- **Bold**, *Italic*&#10;- # Headings&#10;- - Lists&#10;- | Tables |&#10;- $ E = mc^2 $"
-                    autoFocus
-                />
-            ) : (
-                <div className="w-full h-full p-4 sm:p-8 overflow-y-auto custom-scrollbar">
-                    <div className="prose prose-invert prose-sm max-w-none prose-headings:border-b prose-headings:border-white/10 prose-headings:pb-2 prose-headings:mt-6 prose-headings:mb-4 prose-p:text-slate-300 prose-li:text-slate-300 prose-blockquote:border-l-4 prose-blockquote:border-lime-500/50 prose-blockquote:bg-white/5 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:not-italic prose-table:border-collapse prose-th:bg-white/5 prose-th:p-3 prose-td:p-3 prose-td:border-b prose-td:border-white/5 prose-hr:border-white/10">
-                        <ReactMarkdown 
-                            remarkPlugins={[remarkGfm, remarkMath]} 
-                            rehypePlugins={[rehypeKatex]}
-                            components={{
-                                h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-white mt-6 mb-4 border-b border-white/10 pb-2" {...props} />,
-                                h2: ({node, ...props}) => <h2 className="text-xl font-bold text-white mt-5 mb-3" {...props} />,
-                                h3: ({node, ...props}) => <h3 className="text-lg font-bold text-lime-400 mt-4 mb-2" {...props} />,
-                                p: ({node, ...props}) => <p className="mb-3 leading-relaxed text-slate-300" {...props} />,
-                                ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-4 space-y-1 text-slate-300" {...props} />,
-                                ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-4 space-y-1 text-slate-300" {...props} />,
-                                li: ({node, ...props}) => <li className="pl-1" {...props} />,
-                                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-lime-500/50 pl-4 italic text-slate-400 my-4 bg-white/5 py-2 rounded-r" {...props} />,
-                                code: ({node, className, children, ...props}: any) => {
-                                    const match = /language-(\w+)/.exec(className || '')
-                                    const isInline = !match && !String(children).includes('\n');
-                                    return isInline ? 
-                                    <code className="bg-black/40 rounded px-1.5 py-0.5 text-lime-300 font-mono text-sm border border-white/10" {...props}>{children}</code> :
-                                    <pre className="bg-[#0a0a0a] rounded-lg p-4 overflow-x-auto my-4 border border-white/10 text-sm font-mono text-slate-200 custom-scrollbar"><code className={className} {...props}>{children}</code></pre>
-                                },
-                                table: ({node, ...props}) => <div className="overflow-x-auto my-4 rounded-lg border border-white/10"><table className="w-full text-left border-collapse" {...props} /></div>,
-                                th: ({node, ...props}) => <th className="bg-white/10 p-3 font-bold text-white border-b border-white/10 whitespace-nowrap" {...props} />,
-                                td: ({node, ...props}) => <td className="p-3 border-b border-white/5 text-slate-300 min-w-[100px]" {...props} />,
-                                hr: ({node, ...props}) => <hr className="border-white/10 my-6" {...props} />,
-                                a: ({node, ...props}) => <a className="text-lime-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
-                                img: ({node, ...props}) => <img className="max-w-full h-auto rounded-lg my-4 border border-white/10" {...props} />
-                            }}
-                        >
-                            {content}
-                        </ReactMarkdown>
-                        {content.trim() === '' && <p className="text-slate-600 italic">No content to preview.</p>}
-                    </div>
+        {/* Content Area Container */}
+        <div className="flex-1 overflow-hidden relative bg-black/20 flex">
+            
+            {/* Table Of Contents Sidebar (Only in FullScreen Preview) */}
+            {isFullScreen && viewMode === 'preview' && headings.length > 0 && (
+                <div className="w-64 bg-[#08100c]/50 border-r border-white/10 overflow-y-auto custom-scrollbar p-6 flex-shrink-0 hidden md:block animate-in slide-in-from-left-4 duration-300 backdrop-blur-md">
+                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 border-b border-white/5 pb-2 flex items-center gap-2">
+                        <List className="w-3 h-3" /> Table of Contents
+                    </h4>
+                    <nav className="space-y-0.5">
+                        {headings.map((h, i) => (
+                            <a 
+                                key={`${h.id}-${i}`}
+                                href={`#${h.id}`}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    const el = document.getElementById(h.id);
+                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }}
+                                className={`block py-1.5 px-2 rounded-lg transition-all text-sm truncate group ${
+                                    h.level === 1 ? 'text-slate-200 font-bold hover:bg-white/10 hover:text-white mt-2' :
+                                    h.level === 2 ? 'text-slate-400 pl-4 hover:bg-white/5 hover:text-slate-200' :
+                                    'text-slate-500 pl-7 text-xs hover:text-slate-300'
+                                }`}
+                                title={h.text}
+                            >
+                                {h.text}
+                            </a>
+                        ))}
+                    </nav>
                 </div>
             )}
+
+            {/* Main Editor/Preview */}
+            <div className="flex-1 overflow-hidden relative h-full flex flex-col">
+                {viewMode === 'edit' ? (
+                    <textarea 
+                        value={content} 
+                        onChange={(e) => setContent(e.target.value)}
+                        className="w-full h-full p-4 sm:p-6 bg-transparent text-slate-200 font-mono text-sm leading-relaxed resize-none focus:outline-none custom-scrollbar placeholder:text-slate-600"
+                        placeholder="Type your notes here... &#10;&#10;Supports:&#10;- **Bold**, *Italic*&#10;- # Headings&#10;- - Lists&#10;- | Tables |&#10;- $ E = mc^2 $"
+                        autoFocus
+                    />
+                ) : (
+                    <div className="w-full h-full p-4 sm:p-8 overflow-y-auto custom-scrollbar scroll-smooth">
+                        <div className="prose prose-invert prose-sm max-w-none prose-headings:border-b prose-headings:border-white/10 prose-headings:pb-2 prose-headings:mt-8 prose-headings:mb-4 prose-p:text-slate-300 prose-li:text-slate-300 prose-blockquote:border-l-4 prose-blockquote:border-lime-500/50 prose-blockquote:bg-white/5 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:not-italic prose-table:border-collapse prose-th:bg-white/5 prose-th:p-3 prose-td:p-3 prose-td:border-b prose-td:border-white/5 prose-hr:border-white/10">
+                            <ReactMarkdown 
+                                remarkPlugins={[remarkGfm, remarkMath]} 
+                                rehypePlugins={[rehypeKatex]}
+                                components={{
+                                    h1: ({node, children, ...props}) => {
+                                        const id = slugify(flattenText(children));
+                                        return <h1 id={id} className="text-2xl font-bold text-white scroll-mt-6" {...props}>{children}</h1>
+                                    },
+                                    h2: ({node, children, ...props}) => {
+                                        const id = slugify(flattenText(children));
+                                        return <h2 id={id} className="text-xl font-bold text-white scroll-mt-6" {...props}>{children}</h2>
+                                    },
+                                    h3: ({node, children, ...props}) => {
+                                        const id = slugify(flattenText(children));
+                                        return <h3 id={id} className="text-lg font-bold text-lime-400 scroll-mt-6" {...props}>{children}</h3>
+                                    },
+                                    p: ({node, ...props}) => <p className="mb-3 leading-relaxed text-slate-300" {...props} />,
+                                    ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-4 space-y-1 text-slate-300" {...props} />,
+                                    ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-4 space-y-1 text-slate-300" {...props} />,
+                                    li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                                    blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-lime-500/50 pl-4 italic text-slate-400 my-4 bg-white/5 py-2 rounded-r" {...props} />,
+                                    code: ({node, className, children, ...props}: any) => {
+                                        const match = /language-(\w+)/.exec(className || '')
+                                        const isInline = !match && !String(children).includes('\n');
+                                        return isInline ? 
+                                        <code className="bg-black/40 rounded px-1.5 py-0.5 text-lime-300 font-mono text-sm border border-white/10" {...props}>{children}</code> :
+                                        <pre className="bg-[#0a0a0a] rounded-lg p-4 overflow-x-auto my-4 border border-white/10 text-sm font-mono text-slate-200 custom-scrollbar"><code className={className} {...props}>{children}</code></pre>
+                                    },
+                                    table: ({node, ...props}) => <div className="overflow-x-auto my-4 rounded-lg border border-white/10"><table className="w-full text-left border-collapse" {...props} /></div>,
+                                    th: ({node, ...props}) => <th className="bg-white/10 p-3 font-bold text-white border-b border-white/10 whitespace-nowrap" {...props} />,
+                                    td: ({node, ...props}) => <td className="p-3 border-b border-white/5 text-slate-300 min-w-[100px]" {...props} />,
+                                    hr: ({node, ...props}) => <hr className="border-white/10 my-6" {...props} />,
+                                    a: ({node, ...props}) => <a className="text-lime-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                    img: ({node, ...props}) => <img className="max-w-full h-auto rounded-lg my-4 border border-white/10" {...props} />
+                                }}
+                            >
+                                {content}
+                            </ReactMarkdown>
+                            {content.trim() === '' && <p className="text-slate-600 italic">No content to preview.</p>}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
 
         {/* Footer */}
